@@ -1,0 +1,38 @@
+package charmcli
+
+import (
+	"context"
+	"errors"
+	"testing"
+
+	"charm.land/huh/v2"
+)
+
+func TestExitCode(t *testing.T) {
+	tests := []struct {
+		name string
+		err  error
+		want int
+	}{
+		{name: "success", err: nil, want: 0},
+		{name: "failure", err: Failure(errors.New("boom")), want: 1},
+		{name: "usage", err: Usage(errors.New("bad args")), want: 2},
+		{name: "silent", err: Exit(7), want: 7},
+		{name: "cancelled", err: context.Canceled, want: 130},
+		{name: "huh aborted", err: huh.ErrUserAborted, want: 130},
+		{name: "plain error", err: errors.New("boom"), want: 1},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := ExitCode(tt.err); got != tt.want {
+				t.Fatalf("ExitCode() = %d, want %d", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestExitZeroIsNil(t *testing.T) {
+	if err := Exit(0); err != nil {
+		t.Fatalf("Exit(0) = %v, want nil", err)
+	}
+}

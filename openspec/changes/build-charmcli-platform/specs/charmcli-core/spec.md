@@ -24,7 +24,7 @@ charmcli MUST expose runtime streams and terminal capabilities as injectable sta
 - **AND** no output is written to process-global stdout/stderr
 
 ### Requirement: Standard stream contract
-stdout MUST contain only the requested command result. Prompts, progress, diagnostics and rendered errors MUST use stderr.
+stdout MUST contain only the requested command result. Prompts, progress, debug diagnostics and rendered errors MUST use stderr.
 
 #### Scenario: Structured output is piped
 - **WHEN** a command selects JSON or YAML output while interactive/progress facilities are available
@@ -32,14 +32,14 @@ stdout MUST contain only the requested command result. Prompts, progress, diagno
 - **AND** transient UI and errors are not mixed into stdout
 
 ### Requirement: Typed exit semantics
-charmcli MUST support standard exit classes and custom errors implementing an exit-code contract.
+charmcli MUST support the common exit classes and custom errors implementing an exit-code contract.
 
 #### Scenario: Standard classes complete
-- **WHEN** a command succeeds
+- **WHEN** a command succeeds or produces a healthy result
 - **THEN** exit code is 0
-- **WHEN** a command returns a typed operational failure
+- **WHEN** a valid command completes and its domain result is negative or contains hard findings
 - **THEN** exit code is 1
-- **WHEN** a command returns a typed usage failure
+- **WHEN** invocation is invalid or execution fails before the requested result can be produced
 - **THEN** exit code is 2
 - **WHEN** execution is interrupted or an interactive form is aborted
 - **THEN** exit code is 130
@@ -60,6 +60,14 @@ charmcli MUST allow an error transformation hook before human error rendering wi
 - **THEN** Fang receives the sanitized display error
 - **AND** the exit code is determined from the original typed error
 
+### Requirement: Shared flags use shared definitions
+charmcli SHOULD provide reusable bindings/helpers for common non-domain flags without hiding Cobra.
+
+#### Scenario: Shared flag helper is used
+- **WHEN** a consumer binds output, confirmation, non-interactive, timeout, verbose, debug, no-color, or dry-run behavior through charmcli
+- **THEN** the canonical spelling and semantics defined by `charmcli-conventions` are used
+- **AND** the resulting flag remains a normal Cobra/pflag flag
+
 ### Requirement: Output formats are shared but human views remain domain-owned
 charmcli MUST provide common output selection and structured encoders without forcing all human output into one reflection-driven table abstraction.
 
@@ -67,6 +75,14 @@ charmcli MUST provide common output selection and structured encoders without fo
 - **WHEN** a consumer selects human output for a hierarchical view
 - **THEN** its domain renderer may write the human result directly through the shared output selection contract
 - **AND** JSON/YAML selection remains handled consistently
+
+### Requirement: Shared human presentation primitives
+charmcli MUST provide a small semantic visual vocabulary suitable for consistent titles, sections, key/value detail, code/next commands, table headers, findings and severity emphasis.
+
+#### Scenario: Consumer renders a common visual concept
+- **WHEN** a consumer needs a section heading, muted evidence, success/info/warning/error emphasis, or a next-command hint
+- **THEN** it can use the shared Charm-native renderer
+- **AND** the renderer does not embed consumer-specific domain vocabulary
 
 ### Requirement: Native Charm interactive design
 Standard prompts MUST use Huh v2 with its Charm-native theme and context-aware execution.

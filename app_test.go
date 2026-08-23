@@ -73,7 +73,8 @@ func TestAppErrorTransformChangesPresentationOnly(t *testing.T) {
 	if code != 2 {
 		t.Fatalf("code=%d, want 2", code)
 	}
-	if !strings.Contains(errOut.String(), "redacted") || strings.Contains(errOut.String(), "secret token") {
+	presentation := strings.ToLower(errOut.String())
+	if !strings.Contains(presentation, "redacted") || strings.Contains(presentation, "secret token") {
 		t.Fatalf("stderr=%q", errOut.String())
 	}
 }

@@ -9,3 +9,9 @@ require (
 	k8s.io/cli-runtime v0.36.3
 	k8s.io/client-go v0.36.3
 )
+
+// Pre-1.0 workspace development: replace with a tagged core version before the
+// first standalone k8s module release. Dependency-module replace directives are
+// ignored by downstream consumers, so the released module must carry a real
+// core requirement.
+replace github.com/sphr2k/charmcli => ..

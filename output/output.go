@@ -6,8 +6,8 @@ import (
 	"io"
 	"strings"
 
-	"github.com/sphr2k/charmcli"
 	"github.com/spf13/cobra"
+	"github.com/sphr2k/charmcli"
 	"go.yaml.in/yaml/v3"
 )
 

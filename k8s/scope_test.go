@@ -4,8 +4,8 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/sphr2k/charmcli"
 	"github.com/spf13/pflag"
+	"github.com/sphr2k/charmcli"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 )
 

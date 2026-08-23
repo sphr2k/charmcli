@@ -4,8 +4,8 @@ import (
 	"context"
 	"os"
 
-	"github.com/sphr2k/charmcli"
 	"github.com/spf13/cobra"
+	"github.com/sphr2k/charmcli"
 )
 
 func main() {

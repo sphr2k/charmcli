@@ -3,8 +3,8 @@ package k8s
 import (
 	"fmt"
 
-	"github.com/sphr2k/charmcli"
 	"github.com/spf13/pflag"
+	"github.com/sphr2k/charmcli"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/rest"
 )

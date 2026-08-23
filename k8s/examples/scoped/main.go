@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"os"
 
-	charmk8s "github.com/sphr2k/charmcli/k8s"
 	"github.com/spf13/cobra"
+	charmk8s "github.com/sphr2k/charmcli/k8s"
 )
 
 func main() {

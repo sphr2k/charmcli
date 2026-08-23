@@ -62,6 +62,9 @@ func (r Renderer) Error(value string) string   { return r.apply(r.error, value) 
 func (r Renderer) Muted(value string) string   { return r.apply(r.muted, value) }
 func (r Renderer) Code(value string) string    { return r.apply(r.code, value) }
 
+// Style applies a semantic tone to a human-readable value.
+func (r Renderer) Style(value string, tone Tone) string { return r.applyTone(tone, value) }
+
 func (r Renderer) apply(style lipgloss.Style, value string) string {
 	if !r.enabled {
 		return value

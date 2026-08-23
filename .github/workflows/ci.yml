@@ -1,0 +1,62 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26.x'
+          cache: false
+
+      - name: Formatting
+        shell: bash
+        run: |
+          files=$(find . -name '*.go' -not -path './.git/*' -print)
+          unformatted=$(gofmt -l $files)
+          if [ -n "$unformatted" ]; then
+            echo "$unformatted"
+            exit 1
+          fi
+
+      - name: Core dependency boundary
+        shell: bash
+        run: |
+          if grep -Eq '^[[:space:]]*k8s\.io/' go.mod; then
+            echo 'core go.mod must not require k8s.io modules'
+            exit 1
+          fi
+          if grep -R '"k8s\.io/' --include='*.go' --exclude-dir=k8s .; then
+            echo 'core source must not import k8s.io packages'
+            exit 1
+          fi
+
+      - name: Kubernetes dependency boundary
+        shell: bash
+        run: |
+          if grep -R 'sigs.k8s.io/controller-runtime' k8s --include='*.go' --include='go.mod'; then
+            echo 'charmcli/k8s must not depend on controller-runtime'
+            exit 1
+          fi
+
+      - name: Core tests
+        run: go test -race ./...
+
+      - name: Core vet
+        run: go vet ./...
+
+      - name: Kubernetes tests
+        working-directory: k8s
+        run: go test -race ./...
+
+      - name: Kubernetes vet
+        working-directory: k8s
+        run: go vet ./...

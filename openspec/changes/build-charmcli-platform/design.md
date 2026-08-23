@@ -2,17 +2,19 @@
 
 ## Context
 
-The reference CLIs already demonstrate three useful patterns, but independently:
+The reference CLIs already demonstrate useful patterns, but independently:
 
 - Cobra + Fang gives `policyopsctl` a strong conventional command tree and attractive normal CLI UX.
 - Huh/Bubble Tea/Lip Gloss provide the desired Charm-native interaction vocabulary.
 - Kubernetes `genericclioptions.ConfigFlags` already expresses kubectl-native kubeconfig/context/namespace behavior and should remain authoritative.
+- `homelabctl` has stronger destructive-interaction safety than a simple yes/no prompt, but its command grammar and rendering are bespoke.
+- `resourcectl` has the weakest current CLI surface and therefore provides a useful migration test for the shared conventions.
 
-The design therefore optimizes for composition rather than replacement.
+The design optimizes for composition rather than replacement, but the platform is intentionally opinionated about product semantics. The three consumers should not merely share libraries; they should feel like one CLI family.
 
 ## Goals
 
-- Give multiple Go CLIs one consistent execution, interaction, output and error model.
+- Give multiple Go CLIs one consistent execution, interaction, output, error and command-semantic model.
 - Preserve Cobra as the command API visible to consumer code.
 - Prefer native Charm defaults and APIs, adding only small semantic helpers.
 - Keep machine output clean by construction.
@@ -21,6 +23,7 @@ The design therefore optimizes for composition rather than replacement.
 - Keep Kubernetes support optional at module level.
 - Delegate Kubernetes configuration semantics to upstream kubectl/client-go APIs.
 - Make standalone and kubectl-plugin invocation names represent the same command tree.
+- Make command naming, flags, output selection, human visuals and exit behavior predictable across all reference consumers.
 
 ## Decision 1 — Repository contains two modules
 
@@ -60,15 +63,13 @@ Typical consumer shape:
 func NewRootCommand(rt *charmcli.Runtime, deps Dependencies) *cobra.Command
 ```
 
-charmcli owns execution around that tree, not the tree itself.
-
-This keeps all Cobra facilities available directly: `Args`, `ValidArgsFunction`, persistent flags, annotations, completion, aliases and ecosystem integrations.
+charmcli owns execution around that tree, not the tree itself. The semantic conventions are enforced through helpers, tests and consumer acceptance, not by replacing Cobra.
 
 ## Decision 3 — App owns execution; Runtime owns environment
 
 `App` is the process-level integration point. It configures Fang and maps command completion to a process exit code.
 
-`Runtime` contains the environment that commands and UI helpers need:
+`Runtime` contains:
 
 ```text
 stdin
@@ -81,98 +82,234 @@ accessibility policy
 
 Streams are injectable. Tests MUST NOT depend on real process-global stdin/stdout/stderr.
 
-The runtime distinguishes raw streams from presentation concerns so structured output is not accidentally mixed with progress or prompts.
-
 ## Decision 4 — Fang v2 is the normal CLI renderer
 
 Use `charm.land/fang/v2`.
 
-Fang owns:
+Fang owns help, usage, error presentation, version integration, completion, manpages, signal-aware execution and terminal color downsampling.
 
-- help and usage presentation;
-- error presentation;
-- version integration;
-- shell completion command;
-- manpages;
-- signal-aware execution where configured;
-- terminal color downsampling.
+charmcli SHOULD pass through Fang configuration rather than mirror every Fang option.
 
-charmcli SHOULD pass through Fang configuration rather than mirror every Fang option in its own API.
+A charmcli error handler wraps Fang only for optional sanitization/redaction, silent non-zero exits and consistent exit classification.
 
-A charmcli error handler wraps Fang only to support:
+## Decision 5 — One resource-oriented command grammar
 
-1. optional error sanitization/redaction before display;
-2. silent non-zero exits;
-3. consistent exit classification.
+The canonical grammar is verb-first and resource-oriented:
 
-## Decision 5 — Exit status is typed behavior
+```text
+get <plural-resource> [name/filter flags]
+describe <singular-resource> <name>
+apply <singular-resource> [name]
+explain <singular-resource> <name>
+suggest <singular-resource> <target>
+doctor
+```
+
+Not every CLI implements every verb. A verb is only exposed where it has meaningful domain semantics.
+
+Canonical meaning:
+
+- `get`: concise read-only inventory/current-state view; normally table-oriented human output.
+- `describe`: detailed read-only view of one logical object/resource.
+- `apply`: idempotently converge declared desired state; may create, update, replace or no-op.
+- `doctor`: read-only diagnostics over a meaningful scope.
+- `explain`: explain why a decision/state exists.
+- `suggest`: produce a read-only recommendation or generated result without applying it.
+
+Resource naming is consistent:
+
+- `get` uses plural nouns (`nodes`, `bindings`, `workloads`, `resources`);
+- object-oriented verbs use singular nouns (`node`, `binding`, `pod`, `resource`).
+
+Root invocation and incomplete verb invocation MUST show Fang help. No root/verb group performs an implicit default action.
+
+## Decision 6 — homelabctl adopts the same grammar
+
+Canonical target:
+
+```text
+homelabctl get cluster
+homelabctl get nodes
+homelabctl describe cluster
+homelabctl describe node NAME
+homelabctl apply cluster
+homelabctl apply node NAME
+homelabctl doctor
+```
+
+`apply node` subsumes current create/update/replace/no-op paths. `apply cluster` replaces `cluster bootstrap` as user-facing semantics while retaining phase-range flags where useful.
+
+The old `node create`, `node status`, `cluster bootstrap` forms are non-canonical compatibility surfaces only.
+
+## Decision 7 — policyopsctl remains the semantic reference consumer
+
+Canonical target remains:
+
+```text
+policyopsctl get workloads|profiles|bindings|exceptions
+policyopsctl describe profile|binding NAME
+policyopsctl explain pod NAME
+policyopsctl suggest binding TYPE/NAME
+policyopsctl doctor
+```
+
+The migration changes infrastructure and visual consistency, not PolicyOps domain meaning.
+
+## Decision 8 — resourcectl adopts canonical resource semantics
+
+Canonical target:
+
+```text
+resourcectl get resources [-n NAMESPACE | -A]
+resourcectl describe resource NAME [-n NAMESPACE]
+
+kubectl resources get resources ...
+kubectl resources describe resource NAME ...
+```
+
+If the plugin-level `resources` name makes repeating `resources` ergonomically undesirable, a consumer spec MAY define a presentation alias, but the standalone canonical grammar remains resource-explicit. `list` may temporarily alias `get`; no-argument invocation shows help.
+
+## Decision 9 — Shared global flag vocabulary
+
+Where applicable, the same flags MUST have the same spelling and semantics:
+
+```text
+-o, --output
+-y, --yes
+--no-color
+--non-interactive
+--timeout
+--verbose
+--debug
+--dry-run
+```
+
+Rules:
+
+- `-v` is reserved for Fang/version behavior and MUST NOT mean verbose.
+- `--yes/-y` only bypasses an otherwise-required confirmation; it does not weaken validation or safety preconditions.
+- `--non-interactive` disables prompts and animated interaction; required unanswered input fails before mutation.
+- `--timeout` is an overall command/workflow deadline where the command has bounded work.
+- `--verbose` exposes additional human evidence/detail without changing domain action.
+- `--debug` enables diagnostic logging/details and MUST write them to stderr.
+- `--no-color` disables semantic color without removing textual meaning.
+- `--quiet` is intentionally not a mandatory v1 convention; clean stream contracts and output formats make it unnecessary for the reference CLIs.
+
+Flags that do not apply to a command are omitted rather than accepted and ignored.
+
+## Decision 10 — Dry-run has one meaning
+
+For `apply`, `--dry-run` means:
+
+> Resolve inputs, validate preconditions, compute the intended transition and present the result, but perform no external mutation.
+
+A command MUST NOT expose `--dry-run` unless it can satisfy that contract. Fake dry-run modes that merely skip the last mutation or omit meaningful preflight are forbidden.
+
+Dry-run output follows the same output and stream contracts as normal execution. A destructive transition may be shown without requiring confirmation because no mutation occurs.
+
+## Decision 11 — Exit status is typed behavior
 
 Base convention:
 
 ```text
-0    success
-1    operational/domain failure or diagnostic hard findings
-2    usage/CLI invocation failure
+0    success / healthy result
+1    valid command completed with negative domain result or hard findings
+2    usage or command execution failure
 130  user interruption/cancellation
 ```
 
-Errors may implement an `ExitCoder` contract. charmcli provides helpers for common classes:
+Examples of exit 1: `doctor` finds hard issues; a status/read workflow validly determines required health is not satisfied.
+
+Examples of exit 2: invalid arguments, kube API/RBAC failure, provider/API execution failure, malformed configuration, or required interaction impossible in non-interactive mode.
+
+Errors may implement `ExitCoder`. charmcli provides:
 
 ```text
 Usage(err)
 Failure(err)
-Exit(code)          // silent status
+Exit(code)
 ```
 
-A silent exit MUST NOT cause Fang to print an error banner. This is required for commands such as `doctor`, where the command has already rendered a valid diagnostic result but intentionally returns status 1.
+A silent exit MUST NOT cause Fang to append an error banner.
 
-Consumer code remains free to define domain-specific `ExitCoder` errors.
-
-## Decision 6 — stdout/stderr is a hard contract
+## Decision 12 — stdout/stderr is a hard contract
 
 `stdout` is reserved for the requested command result.
 
-`stderr` is reserved for:
+`stderr` is reserved for prompts, progress/activity UI, debug/diagnostic logs and Fang-rendered errors.
 
-- prompts;
-- progress/activity UI;
-- diagnostics not constituting the result;
-- Fang-rendered errors.
+For machine-oriented formats, stdout MUST contain exactly the selected result and no ANSI or transient presentation.
 
-For structured output (`json`, `yaml`, `name` or another explicitly machine-oriented format), stdout MUST contain only the selected format and MUST contain no ANSI escape sequences.
+## Decision 13 — Output formats are consistent
 
-Interactive UI MUST NOT write transient rendering to stdout.
+Shared formats are:
 
-## Decision 7 — Output abstraction is intentionally small
+```text
+human
+wide
+json
+yaml
+name
+```
 
-The initial output package standardizes:
+Commands expose only formats that make semantic sense, but any shared format has identical meaning across CLIs.
 
-- common format values;
-- `-o/--output` flag binding;
-- validation of allowed formats;
-- JSON and YAML encoding;
-- selection between human/wide/name render callbacks.
+- `human`: default concise/readable presentation.
+- `wide`: same logical result with additional high-signal fields.
+- `json`/`yaml`: stable typed result models, except generator workflows such as `suggest ... -o yaml|json` whose result is intentionally a manifest.
+- `name`: stable machine-friendly identity only.
 
-It does NOT attempt to infer rich human tables from struct tags or use reflection to model every CLI view.
+`--no-headers` is available for tabular `get` commands where headers exist.
 
-Domain-specific human rendering stays in consumer packages because `policyopsctl` has hierarchical operational views that are not equivalent to a table.
+The output package remains small and callback-based rather than reflection-heavy.
 
-## Decision 8 — Native Charm design is the default
+## Decision 14 — One human visual grammar
 
-Use the native Charm visual vocabulary unless a specific usability requirement demands customization:
+Charm native presentation is mandatory by default:
 
-- Fang default color scheme for command help/errors;
-- Huh `ThemeCharm` for forms;
-- Bubbles defaults for reusable Bubble Tea components;
-- Lip Gloss v2 for custom human views.
+- Fang default color scheme for normal CLI chrome;
+- Huh `ThemeCharm` for interaction;
+- Bubble Tea/Bubbles for live activity;
+- Lip Gloss/Charmtone-derived styles for custom human output.
 
-charmcli does not preserve the existing Clack-inspired `homelabctl` appearance as a design requirement.
+charmcli defines reusable semantic presentation primitives for:
 
-Where custom semantic styling is required, charmcli should derive it from Charm-native theme primitives instead of introducing an unrelated palette.
+```text
+title
+section
+key/value
+muted evidence
+code / next command
+table header
+success
+info
+warning
+error
+finding
+```
 
-## Decision 9 — Huh helpers preserve semantics, not API duplication
+Consumers own domain text and states, but MUST map them onto this shared visual grammar rather than maintaining separate palettes/layout systems.
 
-The `ui` package provides small high-value workflows rather than wrapping every Huh field method:
+Color reinforces meaning but never carries meaning alone.
+
+## Decision 15 — Severity is shared; domain state is not flattened
+
+Presentation severity is standardized:
+
+```text
+success
+info
+warning
+error
+```
+
+Domain states such as `Ready`, `Drift`, `Unmanaged`, `Shadowed`, `Stable`, `Converged` remain explicit. Each consumer maps those states to one of the shared presentation severities.
+
+This avoids both visual inconsistency and loss of domain precision.
+
+## Decision 16 — Huh helpers preserve semantics, not API duplication
+
+The `ui` package provides small high-value workflows:
 
 ```text
 Secret
@@ -182,70 +319,52 @@ Select
 MultiSelect
 ```
 
-Consumers needing advanced forms should use Huh directly.
+Consumers needing advanced forms use Huh directly.
 
-Every helper:
+Every helper uses explicit/inherited streams, stderr for interaction, context, accessible mode and non-interactive refusal where input is required.
 
-- accepts/inherits explicit input/output streams;
-- writes interaction to stderr by default through Runtime;
-- runs with context;
-- respects accessibility mode;
-- rejects required interaction when policy is non-interactive unless an explicit bypass/default exists.
+`ConfirmExact` preserves typed-name confirmation for destructive Homelab node replacement. A migration MUST NOT weaken it to a boolean confirmation.
 
-### Exact confirmation
+## Decision 17 — Destructive apply semantics are uniform
 
-`ConfirmExact` requires the user to type an expected string. This preserves the current `homelabctl node replace` safety property. A migration to Charm-native UI MUST NOT weaken this to a boolean confirmation.
+`apply` itself is not considered destructive; the computed transition may be.
 
-## Decision 10 — Bubble Tea abstraction stops at progress/workflows
+Rules:
 
-charmcli may provide reusable progress/activity/step components for long-running command workflows.
+1. resolve desired/current state;
+2. validate all non-mutating preconditions;
+3. determine transition (`noop`, `create`, `update`, `replace`, etc.);
+4. if transition is destructive and execution is mutating, require the command's declared confirmation policy;
+5. `-y/--yes` bypasses only that confirmation;
+6. perform mutation.
 
-It MUST NOT provide a generic wrapper around arbitrary full-screen Bubble Tea applications. Consumers needing a custom TUI use Bubble Tea directly.
+Non-interactive execution that reaches a required confirmation without `--yes` fails before mutation.
 
-Progress adapts by environment:
+## Decision 18 — Bubble Tea abstraction stops at progress/workflows
+
+charmcli provides reusable activity/step components, not a framework around arbitrary full-screen Bubble Tea applications.
+
+Progress adapts:
 
 ```text
-interactive TTY     animated Charm/Bubbles presentation
+interactive TTY     animated Charm/Bubbles presentation on stderr
 non-interactive     deterministic linear messages on stderr
 machine stdout      never polluted
 ```
 
-## Decision 11 — Accessibility and terminal behavior are first-class
+## Decision 19 — Accessibility and terminal behavior are first-class
 
-Huh's accessible mode and `TERM=dumb` behavior are reused rather than reimplemented.
+Huh accessible mode and `TERM=dumb` behavior are reused rather than reimplemented. Runtime capabilities are overridable for tests.
 
-Runtime capability detection is overridable for tests and unusual execution environments.
+`NO_COLOR`, `CLICOLOR`, `CLICOLOR_FORCE` and color-profile downsampling should be delegated to Charm libraries where possible.
 
-`NO_COLOR` and terminal color-profile behavior should be delegated to Charm libraries wherever possible instead of each consumer manually checking environment variables and stripping ANSI.
+## Decision 20 — Kubernetes support is a first-party optional extension
 
-## Decision 12 — Kubernetes support is a first-party optional extension
+`github.com/sphr2k/charmcli/k8s` is an integration layer, not a Kubernetes SDK.
 
-`github.com/sphr2k/charmcli/k8s` exists because two reference CLIs are kubectl-like and `homelabctl` also consumes kubeconfig/context behavior.
+It MUST use upstream `genericclioptions.ConfigFlags` / `RESTClientGetter` semantics and MUST NOT define a parallel Kubernetes configuration model.
 
-It is an integration layer, not a Kubernetes SDK.
-
-The module MUST use Kubernetes upstream `genericclioptions.ConfigFlags` / `RESTClientGetter` semantics as the source of truth.
-
-It MUST NOT define a parallel configuration model like:
-
-```go
-type Config struct {
-    Kubeconfig string
-    Context string
-    Namespace string
-}
-```
-
-Instead it may hold and expose the real upstream object:
-
-```go
-type Scope struct {
-    ConfigFlags *genericclioptions.ConfigFlags
-    AllNamespaces bool
-}
-```
-
-Useful public operations include:
+Useful operations include:
 
 ```text
 AddFlags(*cobra.Command)
@@ -256,30 +375,19 @@ ResolveNamespace()
 Resolve()
 ```
 
-## Decision 13 — Scope adds only missing kubectl ergonomics
+## Decision 21 — Scope adds only missing kubectl ergonomics
 
-`ConfigFlags.AddFlags` is passed through natively.
+`ConfigFlags.AddFlags` is passed through natively. charmcli/k8s adds only optional `-A`, `-n`/`-A` validation, current-context namespace resolution, namespace completion, plugin identity and test helpers.
 
-charmcli/k8s adds only behavior that reference consumers otherwise repeat:
+Auth/TLS/context/impersonation/API-server semantics remain upstream behavior.
 
-- optional `-A/--all-namespaces`;
-- mutual-exclusion validation for namespace and all-namespaces;
-- current-context namespace resolution;
-- namespace completion helper;
-- kubectl-plugin invocation display identity;
-- test helpers.
+## Decision 22 — controller-runtime stays outside charmcli/k8s
 
-Kubeconfig parsing, context overrides, auth, TLS, impersonation, API server selection and REST config creation remain upstream Kubernetes behavior.
+The extension exposes `*rest.Config` and `genericclioptions.RESTClientGetter` but MUST NOT require controller-runtime. Consumers choose their client implementation.
 
-## Decision 14 — controller-runtime stays outside charmcli/k8s
+## Decision 23 — kubectl aliases have semantic parity
 
-The extension may expose `*rest.Config` and `genericclioptions.RESTClientGetter`.
-
-It MUST NOT depend on `sigs.k8s.io/controller-runtime` merely because current consumers happen to use its client. Consumers construct whichever Kubernetes client implementation they need.
-
-## Decision 15 — kubectl plugin identity is a reusable concept
-
-The same command tree can be presented under a standalone and kubectl-plugin identity:
+The same command tree is presented under:
 
 ```text
 policyopsctl ...
@@ -289,50 +397,51 @@ resourcectl ...
 kubectl resources ...
 ```
 
-An invocation helper derives a display name from `argv[0]` without changing domain behavior. Packaging may use a second binary name, symlink, hardlink or equivalent; that choice is outside the command tree.
+Only the displayed invocation identity may differ. Command availability, flags, output bytes, exit codes and domain behavior MUST otherwise be equivalent.
 
-## Decision 16 — resourcectl migration target
+## Decision 24 — Help and documentation follow one style
 
-The framework must support the intended Resource CLI migration:
+Every public command SHOULD provide concise `Short` text and representative examples. Canonical examples MUST use the new grammar, never deprecated aliases.
 
-```text
-resourcectl get [-n NAMESPACE | -A]
-resourcectl describe NAME [-n NAMESPACE]
+Root and verb-group help MUST be useful and deterministic enough for golden/visual tests.
 
-kubectl resources get ...
-kubectl resources describe ...
-```
+## Decision 25 — Compatibility is temporary and explicit
 
-`list` may remain an alias for `get` during migration. Root invocation without a command should show Fang help instead of implicitly performing a list operation.
+Breaking changes are accepted to reach the unified model.
+
+Legacy forms MAY remain as hidden/deprecated aliases during migration, but:
+
+- they are not documented as canonical;
+- new examples/tests use the canonical grammar;
+- aliases delegate to the same implementation;
+- aliases MUST NOT retain divergent flags/output/exit semantics;
+- removal is allowed after the migration window.
 
 ## Testing strategy
 
-Core tests cover:
+Core tests cover streams, exit classes, sanitized presentation, output cleanliness, Huh non-interactive refusal, exact confirmation, accessibility and progress fallback.
 
-- injected streams;
-- default/raw error exit mapping;
-- usage/failure/silent/cancelled exits;
-- error transform applied to display but not classification;
-- structured output JSON/YAML cleanliness;
-- Huh helper non-interactive refusal;
-- exact confirmation validation;
-- accessible mode wiring;
-- progress non-interactive fallback.
+Convention contract tests cover:
 
-Kubernetes tests cover:
+- root/incomplete commands show help and do not execute work;
+- canonical plural/singular resource grammar;
+- shared flag spelling and semantics;
+- structured output is ANSI-free and stdout-clean;
+- shared human render primitives produce consistent hierarchy;
+- domain state maps to shared severity without losing its textual state;
+- destructive apply requires confirmation only when mutation is destructive;
+- dry-run performs zero mutation;
+- non-interactive required confirmation fails before mutation;
+- deprecated aliases reach the same implementation where retained.
 
-- root core module imports no Kubernetes packages;
-- upstream ConfigFlags are exposed and bind standard flags;
-- namespace/current-context resolution is upstream-driven;
-- `-n` and `-A` conflict deterministically;
-- all-namespaces resolves to empty namespace;
-- standalone and kubectl-plugin invocation display names;
-- no controller-runtime dependency.
+Kubernetes tests cover dependency boundaries, ConfigFlags passthrough, scope resolution, completion, plugin identity and absence of controller-runtime.
 
 Consumer acceptance after migration covers:
 
-- `policyopsctl` standalone and kubectl invocation remain behaviorally equivalent;
-- `resourcectl` is canonical while `kubectl resources` remains supported;
-- `homelabctl` typed-name destructive confirmation is not weakened;
-- `homelabctl node status -o json` remains stdout-clean;
-- current consumer-specific manual TTY/style/parser infrastructure can be removed rather than duplicated beside charmcli.
+- PolicyOps command semantics remain intact under the common visual/output/error contracts;
+- Resource CLI uses `resourcectl` and canonical `get`/`describe` semantics;
+- Homelab uses `get`/`describe`/`apply`/`doctor`, with `apply node` subsuming create/update/replace/no-op;
+- Homelab typed-name destructive confirmation is not weakened;
+- all machine output remains stdout-clean;
+- standalone and kubectl aliases are semantically equivalent;
+- consumer-local parser, palette, TTY, progress and Kubernetes plumbing is removed once charmcli provides the equivalent.

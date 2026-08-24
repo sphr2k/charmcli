@@ -70,6 +70,36 @@ func TestDetailGridForWidthFallsBackWhenContentIsTooWide(t *testing.T) {
 	}
 }
 
+func TestDetailGridForWidthKeepsSecondColumnAtStableTrack(t *testing.T) {
+	r := Renderer{}
+	got := r.DetailGridForWidth([]Detail{
+		{Key: "power", Value: "poweredOn"},
+		{Key: "ssh", Value: "reachable"},
+		{Key: "ipv4", Value: "10.0.7.20"},
+		{Key: "disk", Value: "68% · 25G"},
+	}, 80)
+	if len(got) != 2 {
+		t.Fatalf("DetailGridForWidth() returned %d rows, want 2", len(got))
+	}
+	if index := strings.Index(got[0], "ssh"); index != 40 {
+		t.Fatalf("second column starts at %d, want 40: %q", index, got[0])
+	}
+	if index := strings.Index(got[1], "disk"); index != 40 {
+		t.Fatalf("second column starts at %d, want 40: %q", index, got[1])
+	}
+}
+
+func TestResourceHeaderKeepsStatusTogetherWhenNarrow(t *testing.T) {
+	r := Renderer{}
+	got := r.ResourceHeaderLines(ResourceHeader{
+		Name:   "homelab-node-1",
+		Status: Styled("READY", ToneSuccess),
+	}, 20)
+	if len(got) < 2 || got[1] != "  ● READY" {
+		t.Fatalf("narrow header split status: %#v", got)
+	}
+}
+
 func TestResourceHeaderLinesPlain(t *testing.T) {
 	r := Renderer{}
 	got := r.ResourceHeaderLines(ResourceHeader{

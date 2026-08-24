@@ -51,7 +51,7 @@ func (r Renderer) DetailGridForWidth(details []Detail, width int) []string {
 		return r.DetailLines(details)
 	}
 
-	lines := r.DetailGrid(details, columns, DefaultDetailGap)
+	lines := r.detailGrid(details, columns, DefaultDetailGap, width/2)
 	for _, line := range lines {
 		if lipgloss.Width(line) > width {
 			return r.DetailLines(details)
@@ -64,6 +64,10 @@ func (r Renderer) DetailGridForWidth(details []Detail, width int) []string {
 // DetailGridForWidth for terminal-aware output; use this method when a caller
 // intentionally controls the number of columns.
 func (r Renderer) DetailGrid(details []Detail, columns, gap int) []string {
+	return r.detailGrid(details, columns, gap, 0)
+}
+
+func (r Renderer) detailGrid(details []Detail, columns, gap, columnStart int) []string {
 	if len(details) == 0 {
 		return nil
 	}
@@ -85,17 +89,11 @@ func (r Renderer) DetailGrid(details []Detail, columns, gap int) []string {
 		}
 	}
 
-	cellWidths := make([]int, columns)
-	for i, detail := range details {
-		column := i % columns
-		width := keyWidths[column] + 2 + lipgloss.Width(detailValueText(detail))
-		if width > cellWidths[column] {
-			cellWidths[column] = width
-		}
-	}
-
 	rows := (len(details) + columns - 1) / columns
 	lines := make([]string, 0, rows)
+	if columnStart <= 0 {
+		columnStart = firstDetailWidth(details, keyWidths, gap)
+	}
 	for row := 0; row < rows; row++ {
 		var line strings.Builder
 		for column := 0; column < columns; column++ {
@@ -103,19 +101,39 @@ func (r Renderer) DetailGrid(details []Detail, columns, gap int) []string {
 			if index >= len(details) {
 				break
 			}
-			if column > 0 {
-				line.WriteString(strings.Repeat(" ", gap))
-			}
-
 			rendered := r.detailLine(details[index], keyWidths[column])
-			line.WriteString(rendered)
-			if column < columns-1 && index+1 < len(details) {
-				line.WriteString(strings.Repeat(" ", cellWidths[column]-lipgloss.Width(rendered)))
+			if column > 0 {
+				line.WriteString(strings.Repeat(" ", max(0, columnStart-lipgloss.Width(line.String()))))
 			}
+			line.WriteString(rendered)
 		}
 		lines = append(lines, line.String())
 	}
 	return lines
+}
+
+func firstDetailWidth(details []Detail, keyWidths []int, gap int) int {
+	if len(keyWidths) < 2 {
+		return 0
+	}
+	firstWidth := 0
+	for i := 0; i < len(details); i += 2 {
+		width := keyWidths[0] + 2 + lipgloss.Width(detailValueText(details[i]))
+		if width > firstWidth {
+			firstWidth = width
+		}
+	}
+	if gap < 2 {
+		gap = 2
+	}
+	return firstWidth + gap
+}
+
+func max(left, right int) int {
+	if left > right {
+		return left
+	}
+	return right
 }
 
 func detailKeyWidth(details []Detail) int {

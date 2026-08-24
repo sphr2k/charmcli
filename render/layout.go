@@ -35,14 +35,21 @@ func (r Renderer) ResourceHeaderLines(header ResourceHeader, width int) []string
 		status := r.applyTone(header.Status.Tone, statusText)
 		statusW := lipgloss.Width(statusText)
 		minimum := accentW + nameW + 2 + statusW
-		if width >= minimum {
+		if width <= 0 || width >= minimum {
 			pad := width - accentW - nameW - statusW
 			if pad < 2 {
 				pad = 2
 			}
 			line += strings.Repeat(" ", pad) + status
 		} else {
-			line += "  " + status
+			// Never let a state marker become a wrapped fragment. A complete
+			// status line is easier to scan than a broken value at the edge.
+			lines := []string{line, "  " + status}
+			if len(header.Meta) > 0 {
+				lines = append(lines, strings.Repeat(" ", accentW)+r.Muted(strings.Join(header.Meta, " · ")))
+			}
+			lines = append(lines, "")
+			return lines
 		}
 	}
 

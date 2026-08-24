@@ -45,7 +45,7 @@ func main() {
 For normal command errors, return errors as usual or classify them explicitly:
 
 ```go
-return charmcli.Failure(err)   // exit 1
+return charmcli.Failure(err)   // exit 2
 return charmcli.Usage(err)     // exit 2
 return charmcli.Exit(1)        // exit 1, no extra Fang error banner
 ```

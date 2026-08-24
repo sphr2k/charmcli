@@ -24,7 +24,7 @@
 - [x] Map cancellation/user abort to exit 130.
 - [x] Ensure silent non-zero exits do not emit Fang error banners.
 - [x] Add tests for 0/1/2/130 behavior and transformed errors.
-- [ ] Align public helpers/documentation with final convention: exit 1 = valid negative/domain result, exit 2 = invocation/execution failure.
+- [x] Align public helpers/documentation with final convention: exit 1 = valid negative/domain result, exit 2 = invocation/execution failure.
 
 ## 4. Output
 

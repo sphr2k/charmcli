@@ -80,12 +80,12 @@ func (app *App) Run(ctx context.Context, args []string, streams Streams, factory
 	runtime := NewRuntime(streams, app.runtimeOptions...)
 	if factory == nil {
 		_, _ = fmt.Fprintln(runtime.Streams.Err, "ERROR: nil command factory")
-		return 1
+		return 2
 	}
 	root := factory(runtime)
 	if root == nil {
 		_, _ = fmt.Fprintln(runtime.Streams.Err, "ERROR: nil root command")
-		return 1
+		return 2
 	}
 
 	root.SetIn(runtime.Streams.In)

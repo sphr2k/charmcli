@@ -43,6 +43,32 @@ func TestAppTypedUsageExit(t *testing.T) {
 	}
 }
 
+func TestAppExecutionFailureExit(t *testing.T) {
+	streams, _, _ := testStreams()
+	app := New(WithRuntimeOptions(WithCapabilities(Capabilities{})))
+	code := app.Run(context.Background(), nil, streams, func(_ *Runtime) *cobra.Command {
+		return &cobra.Command{Use: "test", RunE: func(*cobra.Command, []string) error {
+			return Failure(errors.New("API unavailable"))
+		}}
+	})
+	if code != 2 {
+		t.Fatalf("code=%d, want 2", code)
+	}
+}
+
+func TestAppPlainExecutionErrorExit(t *testing.T) {
+	streams, _, _ := testStreams()
+	app := New(WithRuntimeOptions(WithCapabilities(Capabilities{})))
+	code := app.Run(context.Background(), nil, streams, func(_ *Runtime) *cobra.Command {
+		return &cobra.Command{Use: "test", RunE: func(*cobra.Command, []string) error {
+			return errors.New("API unavailable")
+		}}
+	})
+	if code != 2 {
+		t.Fatalf("code=%d, want 2", code)
+	}
+}
+
 func TestAppUnknownCommandIsUsage(t *testing.T) {
 	streams, _, errOut := testStreams()
 	app := New(WithRuntimeOptions(WithCapabilities(Capabilities{})))

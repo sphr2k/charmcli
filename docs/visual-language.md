@@ -119,8 +119,8 @@ Use `render.SectionLines` and `render.Rule`.
 ## Key/value details
 
 Keys are secondary; values are primary. On a wide terminal, details prefer two
-or three aligned columns. On a narrow terminal, or when the actual values would
-overflow, they collapse to a smaller layout.
+aligned columns. On a narrow terminal, or when the actual values would
+overflow, they collapse to one column.
 
 ```text
 uptime      10d19h              disk         68% · 25G
@@ -132,11 +132,8 @@ Default maximum density:
 ```text
 width < 80     one detail column
 width >= 80    prefer two columns when content fits
-width >= 120   prefer three columns when content fits and there are at least six fields
 
-Sparse sections use fewer columns: three fields start two columns, and one or
-two fields stay in one column. Three columns therefore always contain at least
-two complete detail rows.
+Sparse sections use fewer columns: one or two fields stay in one column.
 ```
 
 Use `render.DetailGridForWidth` for normal terminal-aware output. Lower-level

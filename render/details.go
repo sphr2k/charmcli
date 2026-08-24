@@ -11,8 +11,6 @@ const (
 	DefaultDetailGap = 8
 	// WideDetailMinWidth is the default breakpoint for considering two-column detail views.
 	WideDetailMinWidth = 80
-	// ThreeColumnMinWidth is the breakpoint for considering three-column detail views.
-	ThreeColumnMinWidth = 120
 )
 
 // Detail is a semantic key/value item for human-readable detail views.
@@ -27,9 +25,6 @@ type Detail struct {
 // DetailColumns returns the default maximum detail density for a terminal width.
 // Content-aware rendering may still collapse a wide terminal to one column.
 func DetailColumns(width int) int {
-	if width >= ThreeColumnMinWidth {
-		return 3
-	}
 	if width >= WideDetailMinWidth {
 		return 2
 	}
@@ -37,15 +32,12 @@ func DetailColumns(width int) int {
 }
 
 // DetailColumnsForCount applies the density guard for sparse detail sections.
-// Three columns require two complete rows; two columns require at least two
-// rows as well, while one or two fields stay in a single column.
+// One or two fields stay in a single column; wider sections use the normal
+// terminal-width limit of at most two columns.
 func DetailColumnsForCount(width, count int) int {
 	columns := DetailColumns(width)
 	if count < 3 {
 		return 1
-	}
-	if columns >= 3 && count < 6 {
-		return 2
 	}
 	return columns
 }

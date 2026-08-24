@@ -68,8 +68,9 @@ func TestResourceHeaderLinesPlain(t *testing.T) {
 		Meta:   []string{"esxi", "pet", "192.168.200.1"},
 	}, 0)
 	want := []string{
-		"homelab-node-1  ● Ready",
-		"esxi · pet · 192.168.200.1",
+		"▌ homelab-node-1  ● Ready",
+		"  esxi · pet · 192.168.200.1",
+		"",
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("ResourceHeaderLines() = %#v, want %#v", got, want)
@@ -79,7 +80,7 @@ func TestResourceHeaderLinesPlain(t *testing.T) {
 func TestSectionLinesPlain(t *testing.T) {
 	r := Renderer{}
 	got := r.SectionLines("Host", 8)
-	want := []string{"HOST", "────────"}
+	want := []string{"Host", "────────"}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("SectionLines() = %#v, want %#v", got, want)
 	}

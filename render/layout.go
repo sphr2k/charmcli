@@ -16,17 +16,31 @@ type ResourceHeader struct {
 }
 
 // ResourceHeaderLines renders resource identity without enclosing it in a box.
-// When width permits, status is aligned to the right edge of the first line.
+// A mandatory left accent (▌) uses the shared accent tone. When width permits,
+// status is aligned to the right edge of the first line. The returned slice
+// ends with a blank line for breathing room before the first section.
 func (r Renderer) ResourceHeaderLines(header ResourceHeader, width int) []string {
+	const accentGlyph = "▌"
+	accent := r.Accent(accentGlyph)
 	name := r.Title(header.Name)
-	line := name
+
+	// Unstyled widths for layout math (ANSI must not affect spacing).
+	nameW := lipgloss.Width(header.Name)
+	accentW := lipgloss.Width(accentGlyph) + 1 // glyph + following space
+
+	line := accent + " " + name
 
 	if header.Status.Text != "" {
 		statusText := "● " + header.Status.Text
 		status := r.applyTone(header.Status.Tone, statusText)
-		minimum := lipgloss.Width(header.Name) + 2 + lipgloss.Width(statusText)
+		statusW := lipgloss.Width(statusText)
+		minimum := accentW + nameW + 2 + statusW
 		if width >= minimum {
-			line += strings.Repeat(" ", width-lipgloss.Width(header.Name)-lipgloss.Width(statusText)) + status
+			pad := width - accentW - nameW - statusW
+			if pad < 2 {
+				pad = 2
+			}
+			line += strings.Repeat(" ", pad) + status
 		} else {
 			line += "  " + status
 		}
@@ -34,8 +48,11 @@ func (r Renderer) ResourceHeaderLines(header ResourceHeader, width int) []string
 
 	lines := []string{line}
 	if len(header.Meta) > 0 {
-		lines = append(lines, r.Muted(strings.Join(header.Meta, " · ")))
+		// Indent meta to align under the name (past the accent + space).
+		lines = append(lines, strings.Repeat(" ", accentW)+r.Muted(strings.Join(header.Meta, " · ")))
 	}
+	// Breathing room before the first section.
+	lines = append(lines, "")
 	return lines
 }
 
@@ -47,10 +64,11 @@ func (r Renderer) Rule(width int) string {
 	return r.Muted(strings.Repeat("─", width))
 }
 
-// SectionLines renders the canonical static section header: an uppercase label
-// followed by a quiet rule. It deliberately does not use a timeline glyph.
+// SectionLines renders the canonical static section header: a Title Case label
+// followed by a quiet rule. It deliberately does not use a timeline glyph and
+// does not force ALL CAPS.
 func (r Renderer) SectionLines(title string, width int) []string {
-	title = strings.ToUpper(strings.TrimSpace(title))
+	title = strings.TrimSpace(title)
 	if width < lipgloss.Width(title) {
 		width = lipgloss.Width(title)
 	}

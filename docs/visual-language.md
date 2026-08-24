@@ -1,5 +1,8 @@
 # charmcli visual language
 
+> **v1.1** – calmer hierarchy, Title Case sections, light header accent, more breathing room.
+> Colors continue to come exclusively from Huh `ThemeCharm`.
+
 charmcli uses Charm as its terminal rendering substrate and shared color
 language, but it does not adopt a Charm/Clack prompt layout for static command
 output. The visual grammar is closer to modern system tools such as `delta`,
@@ -16,8 +19,11 @@ ownership of their data and vocabulary; charmcli owns the presentation grammar.
 2. **Resource-oriented, not conversational.** `get` and `describe` should look
    like operator tools, not setup wizards.
 3. **Dense but calm.** Prefer aligned fields and whitespace over repeated glyphs.
+   A little vertical breathing room after the header and between sections is
+   preferred over packing everything to the top.
 4. **Color is semantic and shared.** Static output reuses Huh `ThemeCharm`
    color tokens so prompts, help, and result views remain one product family.
+   Never introduce fixed hex palettes in consumers.
 5. **Progress is transient.** Live activity belongs on stderr and resolves to a
    compact result. Static stdout remains stable.
 6. **Responsive by construction.** Detail views become denser on wide terminals
@@ -26,37 +32,37 @@ ownership of their data and vocabulary; charmcli owns the presentation grammar.
    boundary such as a warning, a destructive preflight summary, or an isolated
    artifact. Do not put every section in a card.
 
-## Reference detail view
+## Reference detail view (v1.1)
 
 The canonical `describe` shape is:
 
 ```text
-homelab-node-1                                          ● READY
-esxi · pet · 192.168.200.1 · 10d12h
+▌  homelab-node-1                                          ● READY
+   esxi · pet · 192.168.200.1 · 10d12h
 
-SERVER
+Server
 ────────────────────────────────────────────────────────────
 power       poweredOn           ssh          ✓ reachable
 ipv4        10.0.7.20
 
-HOST
+Host
 ────────────────────────────────────────────────────────────
 uptime      10d19h              disk         68% · 25G
-load        0.33 0.62 0.92      reboot       ! required
+load        0.33 0.62 0.92      reboot       ⚠ required
 cloud-init  ✓ done
 
-KUBERNETES
+Kubernetes
 ────────────────────────────────────────────────────────────
 kubelet     v1.34.3             cpu          4
 os          Ubuntu 24.04.4      memory       11.7 GiB
 kernel      7.0.0-28            runtime      containerd 2.3.2
 
-WORKLOADS
+Workloads
 ────────────────────────────────────────────────────────────
 pods        48                  drainable    34
 daemonsets  10                  replace      ✓ ok
 
-NETWORK
+Network
 ────────────────────────────────────────────────────────────
 Cilium      ● ready     23m
 Kilo        ● ready     1d20h
@@ -66,35 +72,39 @@ The exact fields are domain-owned. The hierarchy is not.
 
 ## Resource header
 
-A detail view starts with identity, current state, and compact secondary
-metadata.
+A detail view starts with a light left accent, identity, current state, and
+compact secondary metadata.
 
 ```text
-homelab-node-1                                          ● READY
-esxi · pet · 192.168.200.1 · 10d12h
+▌  homelab-node-1                                          ● READY
+   esxi · pet · 192.168.200.1 · 10d12h
 ```
 
 Rules:
 
-- resource identity is the strongest text on the screen;
+- one left accent glyph (`▌` or a thin `│`) rendered with the shared accent tone
+  from `ThemeCharm`;
+- resource identity is the strongest text on the screen (title tone);
 - one state marker (`●`) is enough;
 - status is right-aligned when the terminal is wide enough;
 - secondary metadata is muted and separated with ` · `;
+- one blank line after the header for breathing room;
 - do not put the resource header in a box by default.
 
-Use `render.ResourceHeaderLines`.
+Use `render.ResourceHeaderLines` (v1.1 adds the optional left accent and spacing).
 
 ## Sections
 
-Static sections use an uppercase heading followed by a quiet rule:
+Static sections use **Title Case** followed by a quiet rule:
 
 ```text
-HOST
+Host
 ────────────────────────────────────────────────────────────
 ```
 
 Rules:
 
+- Title Case (not `HOST` / ALL CAPS) for a calmer look;
 - no `◇`/`│` timeline for normal static detail output;
 - no repeated leading icon on each section;
 - use whitespace between sections;
@@ -110,7 +120,7 @@ they collapse to one column.
 
 ```text
 uptime      10d19h              disk         68% · 25G
-load        0.33 0.62 0.92      reboot       ! required
+load        0.33 0.62 0.92      reboot       ⚠ required
 ```
 
 Default maximum density:
@@ -151,7 +161,7 @@ family (`huh.ThemeCharm`) rather than from consumer-local palettes.
 | Tone | Intended use |
 | --- | --- |
 | plain | normal values |
-| accent/info | headings, selected identity, informational emphasis |
+| accent/info | headings, selected identity, left accent, informational emphasis |
 | success | healthy/ready/completed state |
 | warning | attention required, degraded state, planned risky transition |
 | error | failed/invalid/hard failure state |
@@ -167,9 +177,10 @@ Symbols are scarce and semantic. Preferred vocabulary:
 ```text
 ●  state
 ✓  successful check / reachable / satisfied
-!  warning / attention required
+⚠  warning / attention required
 ✕  failed check
 →  transition
+▌  header accent (v1.1)
 ```
 
 Do not decorate every line. Do not introduce emoji into the canonical grammar.
@@ -258,3 +269,11 @@ terminal
 
 Charm provides the coherent color and terminal substrate. charmcli owns the
 static visual grammar and presentation contract.
+
+## Changelog (v1.1)
+
+- Resource header: optional left accent (`▌`) using accent tone + breathing room.
+- Sections: Title Case instead of ALL CAPS.
+- Symbols: prefer `⚠` for warnings (still falls back to plain text without color).
+- Spacing: one blank line after the header and between major sections.
+- Colors: unchanged – still derived only from `huh.ThemeCharm` via `render.Renderer`.

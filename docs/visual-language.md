@@ -132,7 +132,11 @@ Default maximum density:
 ```text
 width < 80     one detail column
 width >= 80    prefer two columns when content fits
-width >= 120   prefer three columns when content fits
+width >= 120   prefer three columns when content fits and there are at least six fields
+
+Sparse sections use fewer columns: three fields start two columns, and one or
+two fields stay in one column. Three columns therefore always contain at least
+two complete detail rows.
 ```
 
 Use `render.DetailGridForWidth` for normal terminal-aware output. Lower-level

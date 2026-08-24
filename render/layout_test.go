@@ -28,6 +28,18 @@ func TestDetailColumns(t *testing.T) {
 	if got := DetailColumns(120); got != 3 {
 		t.Fatalf("DetailColumns(120) = %d, want 3", got)
 	}
+	if got := DetailColumnsForCount(120, 2); got != 1 {
+		t.Fatalf("DetailColumnsForCount(120, 2) = %d, want 1", got)
+	}
+	if got := DetailColumnsForCount(120, 3); got != 2 {
+		t.Fatalf("DetailColumnsForCount(120, 3) = %d, want 2", got)
+	}
+	if got := DetailColumnsForCount(120, 5); got != 2 {
+		t.Fatalf("DetailColumnsForCount(120, 5) = %d, want 2", got)
+	}
+	if got := DetailColumnsForCount(120, 6); got != 3 {
+		t.Fatalf("DetailColumnsForCount(120, 6) = %d, want 3", got)
+	}
 }
 
 func TestDetailGridPlain(t *testing.T) {

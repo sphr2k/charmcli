@@ -36,6 +36,20 @@ func DetailColumns(width int) int {
 	return 1
 }
 
+// DetailColumnsForCount applies the density guard for sparse detail sections.
+// Three columns require two complete rows; two columns require at least two
+// rows as well, while one or two fields stay in a single column.
+func DetailColumnsForCount(width, count int) int {
+	columns := DetailColumns(width)
+	if count < 3 {
+		return 1
+	}
+	if columns >= 3 && count < 6 {
+		return 2
+	}
+	return columns
+}
+
 // DetailLines formats aligned key/value lines without leaking styling into
 // the values used for width calculation.
 func (r Renderer) DetailLines(details []Detail) []string {
@@ -51,7 +65,7 @@ func (r Renderer) DetailLines(details []Detail) []string {
 // the available width. Wide terminals prefer two columns but fall back to one
 // when the rendered content would overflow.
 func (r Renderer) DetailGridForWidth(details []Detail, width int) []string {
-	columns := DetailColumns(width)
+	columns := DetailColumnsForCount(width, len(details))
 	if columns == 1 {
 		return r.DetailLines(details)
 	}

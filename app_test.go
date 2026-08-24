@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"charm.land/huh/v2"
 	"github.com/spf13/cobra"
 )
 
@@ -95,6 +96,22 @@ func TestAppSilentExitDoesNotRenderError(t *testing.T) {
 	})
 	if code != 1 {
 		t.Fatalf("code=%d, want 1", code)
+	}
+	if strings.TrimSpace(errOut.String()) != "" {
+		t.Fatalf("stderr=%q, want empty", errOut.String())
+	}
+}
+
+func TestAppUserAbortDoesNotRenderError(t *testing.T) {
+	streams, _, errOut := testStreams()
+	app := New(WithRuntimeOptions(WithCapabilities(Capabilities{})))
+	code := app.Run(context.Background(), nil, streams, func(_ *Runtime) *cobra.Command {
+		return &cobra.Command{Use: "test", RunE: func(*cobra.Command, []string) error {
+			return huh.ErrUserAborted
+		}}
+	})
+	if code != 130 {
+		t.Fatalf("code=%d, want 130", code)
 	}
 	if strings.TrimSpace(errOut.String()) != "" {
 		t.Fatalf("stderr=%q, want empty", errOut.String())

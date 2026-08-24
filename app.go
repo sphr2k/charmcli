@@ -8,6 +8,7 @@ import (
 	"os"
 
 	"charm.land/fang/v2"
+	"charm.land/huh/v2"
 	"github.com/spf13/cobra"
 )
 
@@ -140,7 +141,7 @@ func wrapArgumentValidators(command *cobra.Command) {
 
 func (app *App) errorHandler() fang.ErrorHandler {
 	return func(w io.Writer, styles fang.Styles, err error) {
-		if err == nil || isSilentError(err) || errors.Is(err, context.Canceled) {
+		if err == nil || isSilentError(err) || errors.Is(err, context.Canceled) || errors.Is(err, huh.ErrUserAborted) {
 			return
 		}
 		display := err

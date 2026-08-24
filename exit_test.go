@@ -15,12 +15,13 @@ func TestExitCode(t *testing.T) {
 		want int
 	}{
 		{name: "success", err: nil, want: 0},
-		{name: "failure", err: Failure(errors.New("boom")), want: 2},
+		{name: "execution failure", err: Failure(errors.New("boom")), want: 2},
 		{name: "usage", err: Usage(errors.New("bad args")), want: 2},
-		{name: "silent", err: Exit(7), want: 7},
+		{name: "valid negative result", err: Exit(1), want: 1},
+		{name: "silent custom", err: Exit(7), want: 7},
 		{name: "cancelled", err: context.Canceled, want: 130},
 		{name: "huh aborted", err: huh.ErrUserAborted, want: 130},
-		{name: "plain error", err: errors.New("boom"), want: 2},
+		{name: "plain execution error", err: errors.New("boom"), want: 2},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

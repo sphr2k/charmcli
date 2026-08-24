@@ -38,12 +38,14 @@ func Usage(err error) error {
 	return &codedError{code: 2, err: err}
 }
 
-// Failure marks an operational/domain failure (exit 1).
+// Failure marks a command execution failure such as provider, API, RBAC or
+// configuration failure (exit 2). A valid command that rendered a negative
+// domain result should use Exit(1) instead.
 func Failure(err error) error {
 	if err == nil {
 		return nil
 	}
-	return &codedError{code: 1, err: err}
+	return &codedError{code: 2, err: err}
 }
 
 // Exit returns a silent status error. It is useful when a command has already
@@ -55,7 +57,9 @@ func Exit(code int) error {
 	return &statusError{code: code}
 }
 
-// ExitCode resolves an error into the charmcli process exit convention.
+// ExitCode resolves an error into the charmcli process exit convention:
+// 0 success, 1 explicit valid-negative/domain result, 2 invocation/execution
+// failure, and 130 cancellation/user abort.
 func ExitCode(err error) int {
 	if err == nil {
 		return 0
@@ -67,7 +71,7 @@ func ExitCode(err error) int {
 	if errors.As(err, &coder) {
 		return coder.ExitCode()
 	}
-	return 1
+	return 2
 }
 
 func isSilentError(err error) bool {

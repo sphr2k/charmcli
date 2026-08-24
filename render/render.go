@@ -36,6 +36,9 @@ func New(writer io.Writer) Renderer {
 
 	theme := huh.ThemeCharm(false)
 	convert := func(style lipgloss.Style) lipgloss.Style {
+		// Huh field styles may carry interactive prompt strings such as "> " or
+		// " *". Static semantic styles reuse only their visual attributes.
+		style = style.UnsetString()
 		if foreground := style.GetForeground(); foreground != nil {
 			style = style.Foreground(profile.Convert(foreground))
 		}

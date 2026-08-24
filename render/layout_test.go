@@ -2,8 +2,18 @@ package render
 
 import (
 	"reflect"
+	"strings"
 	"testing"
+
+	"charm.land/huh/v2"
 )
+
+func TestSemanticStyleDoesNotLeakHuhPromptString(t *testing.T) {
+	style := huh.ThemeCharm(false).Focused.SelectSelector
+	if got := style.UnsetString().Render("Server"); strings.Contains(got, "> ") {
+		t.Fatalf("static accent style leaked prompt string: %q", got)
+	}
+}
 
 func TestDetailColumns(t *testing.T) {
 	if got := DetailColumns(79); got != 1 {

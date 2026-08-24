@@ -8,6 +8,7 @@ import (
 	"os"
 
 	"charm.land/fang/v2"
+	"charm.land/huh/v2"
 	"github.com/spf13/cobra"
 )
 
@@ -80,12 +81,12 @@ func (app *App) Run(ctx context.Context, args []string, streams Streams, factory
 	runtime := NewRuntime(streams, app.runtimeOptions...)
 	if factory == nil {
 		_, _ = fmt.Fprintln(runtime.Streams.Err, "ERROR: nil command factory")
-		return 1
+		return 2
 	}
 	root := factory(runtime)
 	if root == nil {
 		_, _ = fmt.Fprintln(runtime.Streams.Err, "ERROR: nil root command")
-		return 1
+		return 2
 	}
 
 	root.SetIn(runtime.Streams.In)
@@ -140,7 +141,7 @@ func wrapArgumentValidators(command *cobra.Command) {
 
 func (app *App) errorHandler() fang.ErrorHandler {
 	return func(w io.Writer, styles fang.Styles, err error) {
-		if err == nil || isSilentError(err) || errors.Is(err, context.Canceled) {
+		if err == nil || isSilentError(err) || errors.Is(err, context.Canceled) || errors.Is(err, huh.ErrUserAborted) {
 			return
 		}
 		display := err

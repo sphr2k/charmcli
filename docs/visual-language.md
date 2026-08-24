@@ -68,6 +68,10 @@ Cilium      ● ready     23m
 Kilo        ● ready     1d20h
 ```
 
+Rendered example (same grammar):
+
+![v1.1 reference detail view](visual-language-v1.1.svg)
+
 The exact fields are domain-owned. The hierarchy is not.
 
 ## Resource header
@@ -277,3 +281,4 @@ static visual grammar and presentation contract.
 - Symbols: prefer `⚠` for warnings (still falls back to plain text without color).
 - Spacing: one blank line after the header and between major sections.
 - Colors: unchanged – still derived only from `huh.ThemeCharm` via `render.Renderer`.
+- Example: see [`visual-language-v1.1.svg`](visual-language-v1.1.svg).

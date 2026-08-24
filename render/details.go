@@ -11,6 +11,8 @@ const (
 	DefaultDetailGap = 8
 	// WideDetailMinWidth is the default breakpoint for considering two-column detail views.
 	WideDetailMinWidth = 80
+	// ThreeColumnMinWidth is the breakpoint for considering three-column detail views.
+	ThreeColumnMinWidth = 120
 )
 
 // Detail is a semantic key/value item for human-readable detail views.
@@ -25,6 +27,9 @@ type Detail struct {
 // DetailColumns returns the default maximum detail density for a terminal width.
 // Content-aware rendering may still collapse a wide terminal to one column.
 func DetailColumns(width int) int {
+	if width >= ThreeColumnMinWidth {
+		return 3
+	}
 	if width >= WideDetailMinWidth {
 		return 2
 	}
@@ -50,8 +55,11 @@ func (r Renderer) DetailGridForWidth(details []Detail, width int) []string {
 	if columns == 1 {
 		return r.DetailLines(details)
 	}
+	if !detailGridFits(details, columns, width) {
+		return r.DetailLines(details)
+	}
 
-	lines := r.detailGrid(details, columns, DefaultDetailGap, width/2)
+	lines := r.detailGrid(details, columns, DefaultDetailGap, width)
 	for _, line := range lines {
 		if lipgloss.Width(line) > width {
 			return r.DetailLines(details)
@@ -91,9 +99,7 @@ func (r Renderer) detailGrid(details []Detail, columns, gap, columnStart int) []
 
 	rows := (len(details) + columns - 1) / columns
 	lines := make([]string, 0, rows)
-	if columnStart <= 0 {
-		columnStart = firstDetailWidth(details, keyWidths, gap)
-	}
+	starts := detailTrackStarts(details, keyWidths, columns, gap, columnStart)
 	for row := 0; row < rows; row++ {
 		var line strings.Builder
 		for column := 0; column < columns; column++ {
@@ -103,7 +109,7 @@ func (r Renderer) detailGrid(details []Detail, columns, gap, columnStart int) []
 			}
 			rendered := r.detailLine(details[index], keyWidths[column])
 			if column > 0 {
-				line.WriteString(strings.Repeat(" ", max(0, columnStart-lipgloss.Width(line.String()))))
+				line.WriteString(strings.Repeat(" ", max(0, starts[column]-lipgloss.Width(line.String()))))
 			}
 			line.WriteString(rendered)
 		}
@@ -112,21 +118,52 @@ func (r Renderer) detailGrid(details []Detail, columns, gap, columnStart int) []
 	return lines
 }
 
-func firstDetailWidth(details []Detail, keyWidths []int, gap int) int {
-	if len(keyWidths) < 2 {
-		return 0
+func detailTrackStarts(details []Detail, keyWidths []int, columns, gap, width int) []int {
+	starts := make([]int, columns)
+	if width > 0 {
+		for column := 1; column < columns; column++ {
+			starts[column] = width * column / columns
+		}
+		return starts
 	}
-	firstWidth := 0
-	for i := 0; i < len(details); i += 2 {
-		width := keyWidths[0] + 2 + lipgloss.Width(detailValueText(details[i]))
-		if width > firstWidth {
-			firstWidth = width
+
+	cellWidths := make([]int, columns)
+	for column := 0; column < columns; column++ {
+		cellWidth := 0
+		for i := column; i < len(details); i += columns {
+			valueWidth := keyWidths[column] + 2 + lipgloss.Width(detailValueText(details[i]))
+			if valueWidth > cellWidth {
+				cellWidth = valueWidth
+			}
+		}
+		cellWidths[column] = cellWidth
+	}
+	for column := 1; column < columns; column++ {
+		starts[column] = starts[column-1] + cellWidths[column-1] + gap
+	}
+	return starts
+}
+
+func detailGridFits(details []Detail, columns, width int) bool {
+	keyWidths := make([]int, columns)
+	for i, detail := range details {
+		column := i % columns
+		if detailWidth := lipgloss.Width(detail.Key); detailWidth > keyWidths[column] {
+			keyWidths[column] = detailWidth
 		}
 	}
-	if gap < 2 {
-		gap = 2
+	for i, detail := range details {
+		column := i % columns
+		start := width * column / columns
+		end := width
+		if column < columns-1 {
+			end = width * (column + 1) / columns
+		}
+		if keyWidths[column]+2+lipgloss.Width(detailValueText(detail)) > end-start {
+			return false
+		}
 	}
-	return firstWidth + gap
+	return true
 }
 
 func max(left, right int) int {

@@ -119,8 +119,8 @@ Use `render.SectionLines` and `render.Rule`.
 ## Key/value details
 
 Keys are secondary; values are primary. On a wide terminal, details prefer two
-aligned columns. On a narrow terminal, or when the actual values would overflow,
-they collapse to one column.
+or three aligned columns. On a narrow terminal, or when the actual values would
+overflow, they collapse to a smaller layout.
 
 ```text
 uptime      10d19h              disk         68% · 25G
@@ -130,8 +130,9 @@ load        0.33 0.62 0.92      reboot       ⚠ required
 Default maximum density:
 
 ```text
-width < 80    one detail column
-width >= 80   prefer two columns when content fits
+width < 80     one detail column
+width >= 80    prefer two columns when content fits
+width >= 120   prefer three columns when content fits
 ```
 
 Use `render.DetailGridForWidth` for normal terminal-aware output. Lower-level

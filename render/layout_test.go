@@ -22,6 +22,12 @@ func TestDetailColumns(t *testing.T) {
 	if got := DetailColumns(80); got != 2 {
 		t.Fatalf("DetailColumns(80) = %d, want 2", got)
 	}
+	if got := DetailColumns(119); got != 2 {
+		t.Fatalf("DetailColumns(119) = %d, want 2", got)
+	}
+	if got := DetailColumns(120); got != 3 {
+		t.Fatalf("DetailColumns(120) = %d, want 3", got)
+	}
 }
 
 func TestDetailGridPlain(t *testing.T) {
@@ -86,6 +92,39 @@ func TestDetailGridForWidthKeepsSecondColumnAtStableTrack(t *testing.T) {
 	}
 	if index := strings.Index(got[1], "disk"); index != 40 {
 		t.Fatalf("second column starts at %d, want 40: %q", index, got[1])
+	}
+}
+
+func TestDetailGridForWidthSupportsThreeStableTracks(t *testing.T) {
+	r := Renderer{}
+	got := r.DetailGridForWidth([]Detail{
+		{Key: "power", Value: "running"},
+		{Key: "ssh", Value: "reachable"},
+		{Key: "ipv4", Value: "10.0.7.20"},
+		{Key: "type", Value: "cx33"},
+		{Key: "location", Value: "fsn1"},
+		{Key: "image", Value: "ubuntu-24.04"},
+	}, 120)
+	if len(got) != 2 {
+		t.Fatalf("DetailGridForWidth() returned %d rows, want 2", len(got))
+	}
+	for _, key := range []struct {
+		value string
+		want  int
+	}{
+		{"ssh", 40},
+		{"ipv4", 80},
+		{"type", 0},
+		{"location", 40},
+		{"image", 80},
+	} {
+		row := got[1]
+		if key.value == "ssh" || key.value == "ipv4" {
+			row = got[0]
+		}
+		if index := strings.Index(row, key.value); index != key.want {
+			t.Fatalf("%s starts at %d, want %d: %q", key.value, index, key.want, row)
+		}
 	}
 }
 

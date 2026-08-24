@@ -133,8 +133,10 @@ func Select[T comparable](ctx context.Context, runtime *charmcli.Runtime, option
 		Title(options.Title).
 		Description(options.Description).
 		Options(toHuhOptions(options.Options)...).
-		Value(&value).
-		Filtering(options.Filtering)
+		Value(&value)
+	if options.Filtering {
+		field.Filtering(true)
+	}
 	if options.Height > 0 {
 		field.Height(options.Height)
 	}

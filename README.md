@@ -10,7 +10,7 @@ Opinionated Go CLI infrastructure for a consistent modern command experience bui
 - Bubble Tea v2/Bubbles v2 own live interaction and activity rendering.
 - Lip Gloss v2 is the rendering substrate for charmcli's own static human visual language.
 - stdout is the requested result; prompts/progress/errors go to stderr.
-- typed exit semantics distinguish operational failure, usage failure and silent diagnostic status.
+- exit status is `0` success, `1` an explicitly rendered valid-negative/domain result, `2` invalid invocation or execution failure, and `130` cancellation/user abort.
 
 The project is intentionally pre-1.0 while the reference consumers (`homelabctl`, `policyopsctl`, `resourcectl`) validate the API.
 
@@ -42,13 +42,15 @@ func main() {
 }
 ```
 
-For normal command errors, return errors as usual or classify them explicitly:
+Normal returned errors are execution failures and therefore exit 2. Use the helpers when intent should be explicit:
 
 ```go
-return charmcli.Failure(err)   // exit 1
-return charmcli.Usage(err)     // exit 2
-return charmcli.Exit(1)        // exit 1, no extra Fang error banner
+return charmcli.Failure(err)   // execution failure, exit 2
+return charmcli.Usage(err)     // invalid invocation, exit 2
+return charmcli.Exit(1)        // valid negative/domain result already rendered; silent exit 1
 ```
+
+Cobra flag parsing, unknown subcommands and positional `Args` validators are classified as usage automatically. `context.Canceled` and Huh user aborts exit 130 without an additional Fang error banner.
 
 ## Interaction
 
@@ -66,14 +68,14 @@ err := ui.ConfirmExact(ctx, rt, ui.ConfirmExactOptions{
 
 ## Output
 
-The `output` package standardizes `-o/--output` and machine encoders while leaving rich human views domain-owned:
+The `output` package standardizes `-o/--output` and machine encoders while leaving domain result models domain-owned:
 
 ```go
 selector := output.NewSelector(output.Human, output.Human, output.JSON, output.YAML)
 selector.AddFlags(cmd)
 ```
 
-Static human views use charmcli's shared visual grammar rather than Huh/Clack-style prompt timelines. The canonical shape is resource header + section rules + dense aligned details, with semantic color and responsive one/two-column layout.
+JSON/YAML/name are deterministic, ANSI-free result representations. Static human views use charmcli's shared visual grammar rather than Huh/Clack-style prompt timelines. The canonical shape is resource header + uppercase section/rule + dense aligned details, with semantic color and responsive one/two-column layout. List-style `get` commands use compact borderless tables.
 
 See [`docs/visual-language.md`](docs/visual-language.md).
 

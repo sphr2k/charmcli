@@ -1,5 +1,7 @@
-// Package render provides a small semantic presentation vocabulary derived
-// from Charm's native Huh theme. It intentionally contains no domain statuses.
+// Package render provides the semantic presentation vocabulary for static
+// human-readable command output. Lip Gloss is the rendering substrate; Huh's
+// Charm theme supplies the shared color tokens, while charmcli owns layout and
+// visual grammar.
 package render
 
 import (
@@ -11,7 +13,7 @@ import (
 	"github.com/charmbracelet/colorprofile"
 )
 
-// Renderer applies semantic Charm-native styles suitable for human output.
+// Renderer applies semantic styles suitable for human output.
 type Renderer struct {
 	enabled bool
 	title   lipgloss.Style
@@ -23,8 +25,9 @@ type Renderer struct {
 	code    lipgloss.Style
 }
 
-// New derives styles for the writer's detected color profile. NO_COLOR,
-// CLICOLOR and non-TTY behavior are handled by Charm colorprofile detection.
+// New derives semantic styles from Huh's Charm theme and converts them to the
+// writer's detected color profile. NO_COLOR, CLICOLOR and non-TTY behavior are
+// handled by Charm colorprofile detection.
 func New(writer io.Writer) Renderer {
 	profile := colorprofile.Detect(writer, os.Environ())
 	if profile <= colorprofile.ASCII {

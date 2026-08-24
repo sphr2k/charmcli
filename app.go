@@ -93,17 +93,49 @@ func (app *App) Run(ctx context.Context, args []string, streams Streams, factory
 	root.SetErr(runtime.Streams.Err)
 	root.SetArgs(args)
 
-	// pflag parse errors are unambiguously usage failures. Consumers should use
-	// Usage for domain-specific argument validation in Args/RunE callbacks.
+	// Flag parsing and positional Args callbacks define the CLI invocation
+	// grammar, therefore their failures are always usage errors.
 	root.SetFlagErrorFunc(func(_ *cobra.Command, err error) error {
 		return Usage(err)
 	})
+	wrapArgumentValidators(root)
+
+	// Cobra returns an ordinary error for an unknown subcommand. Capture command
+	// lookup failure before execution so Fang can still render the native error
+	// while charmcli applies the shared usage exit code afterwards.
+	lookupUsage := false
+	if _, _, findErr := root.Find(args); findErr != nil {
+		lookupUsage = true
+	}
 
 	options := append([]fang.Option{}, app.fangOptions...)
 	options = append(options, fang.WithErrorHandler(app.errorHandler()))
 
 	err := fang.Execute(ctx, root, options...)
+	if err != nil && lookupUsage {
+		return 2
+	}
 	return ExitCode(err)
+}
+
+func wrapArgumentValidators(command *cobra.Command) {
+	if command.Args != nil {
+		validate := command.Args
+		command.Args = func(cmd *cobra.Command, args []string) error {
+			err := validate(cmd, args)
+			if err == nil {
+				return nil
+			}
+			var coder ExitCoder
+			if errors.As(err, &coder) {
+				return err
+			}
+			return Usage(err)
+		}
+	}
+	for _, child := range command.Commands() {
+		wrapArgumentValidators(child)
+	}
 }
 
 func (app *App) errorHandler() fang.ErrorHandler {

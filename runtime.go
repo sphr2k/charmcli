@@ -24,6 +24,9 @@ func DefaultStreams() Streams {
 type Capabilities struct {
 	Interactive bool
 	Accessible  bool
+	// Width is the current stdout terminal width in cells. Zero means unknown
+	// (for example when stdout is redirected or supplied by a test buffer).
+	Width int
 }
 
 // Runtime is the shared execution environment passed to command constructors.
@@ -79,10 +82,23 @@ func normalizeStreams(streams Streams) Streams {
 func detectCapabilities(streams Streams) Capabilities {
 	interactive := isTerminal(streams.In) && isTerminal(streams.Err)
 	accessible := os.Getenv("TERM") == "dumb" || os.Getenv("CHARMCLI_ACCESSIBLE") != ""
-	return Capabilities{Interactive: interactive, Accessible: accessible}
+	width := terminalWidth(streams.Out)
+	return Capabilities{Interactive: interactive, Accessible: accessible, Width: width}
 }
 
 func isTerminal(value any) bool {
 	fd, ok := value.(interface{ Fd() uintptr })
 	return ok && term.IsTerminal(fd.Fd())
+}
+
+func terminalWidth(value any) int {
+	fd, ok := value.(interface{ Fd() uintptr })
+	if !ok || !term.IsTerminal(fd.Fd()) {
+		return 0
+	}
+	width, _, err := term.GetSize(fd.Fd())
+	if err != nil || width <= 0 {
+		return 0
+	}
+	return width
 }

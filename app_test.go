@@ -43,6 +43,22 @@ func TestAppTypedUsageExit(t *testing.T) {
 	}
 }
 
+func TestAppUnknownCommandIsUsage(t *testing.T) {
+	streams, _, errOut := testStreams()
+	app := New(WithRuntimeOptions(WithCapabilities(Capabilities{})))
+	code := app.Run(context.Background(), []string{"missing"}, streams, func(_ *Runtime) *cobra.Command {
+		root := &cobra.Command{Use: "test"}
+		root.AddCommand(&cobra.Command{Use: "get"})
+		return root
+	})
+	if code != 2 {
+		t.Fatalf("code=%d, want 2; stderr=%q", code, errOut.String())
+	}
+	if !strings.Contains(strings.ToLower(errOut.String()), "unknown command") {
+		t.Fatalf("stderr=%q", errOut.String())
+	}
+}
+
 func TestAppSilentExitDoesNotRenderError(t *testing.T) {
 	streams, _, errOut := testStreams()
 	app := New(WithRuntimeOptions(WithCapabilities(Capabilities{})))

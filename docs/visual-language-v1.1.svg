@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="460" viewBox="0 0 720 460">
+  <rect width="720" height="460" fill="#0d1117"/>
+  <style>
+    .t { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 14px; }
+    .title { fill: #E6EDF3; font-weight: 700; }
+    .accent { fill: #79C0FF; }
+    .success { fill: #3FB950; }
+    .warning { fill: #D29922; font-weight: 700; }
+    .muted { fill: #8B949E; }
+    .plain { fill: #E6EDF3; }
+    .purple { fill: #A371F7; }
+  </style>
+  <!-- Header -->
+  <text x="24" y="36" class="t purple">▌</text>
+  <text x="40" y="36" class="t title">homelab-node-1</text>
+  <text x="580" y="36" class="t success">● READY</text>
+  <text x="40" y="56" class="t muted">esxi · pet · 192.168.200.1 · 10d12h</text>
+
+  <!-- Server -->
+  <text x="24" y="96" class="t accent">Server</text>
+  <line x1="24" y1="108" x2="680" y2="108" stroke="#8B949E" stroke-width="1"/>
+  <text x="24" y="130" class="t muted">power</text>
+  <text x="120" y="130" class="t plain">poweredOn</text>
+  <text x="320" y="130" class="t muted">ssh</text>
+  <text x="416" y="130" class="t success">✓ reachable</text>
+  <text x="24" y="152" class="t muted">ipv4</text>
+  <text x="120" y="152" class="t plain">10.0.7.20</text>
+
+  <!-- Host -->
+  <text x="24" y="192" class="t accent">Host</text>
+  <line x1="24" y1="204" x2="680" y2="204" stroke="#8B949E" stroke-width="1"/>
+  <text x="24" y="226" class="t muted">uptime</text>
+  <text x="120" y="226" class="t plain">10d19h</text>
+  <text x="320" y="226" class="t muted">disk</text>
+  <text x="416" y="226" class="t plain">68% · 25G</text>
+  <text x="24" y="248" class="t muted">load</text>
+  <text x="120" y="248" class="t plain">0.33 0.62 0.92</text>
+  <text x="320" y="248" class="t muted">reboot</text>
+  <text x="416" y="248" class="t warning">⚠ required</text>
+  <text x="24" y="270" class="t muted">cloud-init</text>
+  <text x="120" y="270" class="t success">✓ done</text>
+
+  <!-- Kubernetes -->
+  <text x="24" y="310" class="t accent">Kubernetes</text>
+  <line x1="24" y1="322" x2="680" y2="322" stroke="#8B949E" stroke-width="1"/>
+  <text x="24" y="344" class="t muted">kubelet</text>
+  <text x="120" y="344" class="t plain">v1.34.3</text>
+  <text x="320" y="344" class="t muted">cpu</text>
+  <text x="416" y="344" class="t plain">4</text>
+  <text x="24" y="366" class="t muted">os</text>
+  <text x="120" y="366" class="t plain">Ubuntu 24.04.4</text>
+  <text x="320" y="366" class="t muted">memory</text>
+  <text x="416" y="366" class="t plain">11.7 GiB</text>
+  <text x="24" y="388" class="t muted">kernel</text>
+  <text x="120" y="388" class="t plain">7.0.0-28</text>
+  <text x="320" y="388" class="t muted">runtime</text>
+  <text x="416" y="388" class="t plain">containerd 2.3.2</text>
+</svg>

@@ -1,6 +1,6 @@
 # charmcli
 
-Opinionated Go CLI infrastructure for a consistent Charm-native command experience without replacing Cobra.
+Opinionated Go CLI infrastructure for a consistent modern command experience built on Charm without replacing Cobra.
 
 `charmcli` combines the current Charm v2 stack around a small set of cross-CLI contracts:
 
@@ -8,7 +8,7 @@ Opinionated Go CLI infrastructure for a consistent Charm-native command experien
 - Fang v2 owns normal help, errors, version, completion and manpage UX.
 - Huh v2 owns prompts and forms.
 - Bubble Tea v2/Bubbles v2 own live interaction and activity rendering.
-- Lip Gloss v2 owns custom human presentation.
+- Lip Gloss v2 is the rendering substrate for charmcli's own static human visual language.
 - stdout is the requested result; prompts/progress/errors go to stderr.
 - typed exit semantics distinguish operational failure, usage failure and silent diagnostic status.
 
@@ -72,6 +72,10 @@ The `output` package standardizes `-o/--output` and machine encoders while leavi
 selector := output.NewSelector(output.Human, output.Human, output.JSON, output.YAML)
 selector.AddFlags(cmd)
 ```
+
+Static human views use charmcli's shared visual grammar rather than Huh/Clack-style prompt timelines. The canonical shape is resource header + section rules + dense aligned details, with semantic color and responsive one/two-column layout.
+
+See [`docs/visual-language.md`](docs/visual-language.md).
 
 ## Kubernetes extension
 

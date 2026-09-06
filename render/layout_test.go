@@ -131,3 +131,12 @@ func TestSectionLinesPlain(t *testing.T) {
 		t.Fatalf("SectionLines() = %#v, want %#v", got, want)
 	}
 }
+
+func TestDefaultThemeAssignsDistinctHeadingAndValueRoles(t *testing.T) {
+	if DefaultTheme.Heading == DefaultTheme.Value {
+		t.Fatal("heading and value must use distinct semantic roles")
+	}
+	if DefaultTheme.Heading == DefaultTheme.Success || DefaultTheme.Value == DefaultTheme.Success {
+		t.Fatal("hierarchy and success must use distinct semantic roles")
+	}
+}

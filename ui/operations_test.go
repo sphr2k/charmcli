@@ -56,3 +56,31 @@ func TestToolkitPrimitivesKeepPhaseAndWaveHierarchy(t *testing.T) {
 		}
 	}
 }
+
+func TestEventStreamAndGroupedTableKeepOperationalDetail(t *testing.T) {
+	var out bytes.Buffer
+	renderer := render.New(&out)
+	stream := EventStream{Writer: &out, Renderer: renderer}
+	stream.Event(Event{Level: EventSuccess, Label: "Pulling Helm Chart", Value: "cilium 1.20.1"})
+	PrintGroupedTable(&out, renderer, GroupedTable{
+		Title: "Applications by wave",
+		Groups: []TableGroup{{
+			Title: "Wave 10",
+			Rows: []TableRow{{
+				Level: EventSuccess,
+				Cells: []render.Cell{
+					render.Styled("platform/10-cilium", render.ToneAccent),
+					render.Styled("kube-system", render.ToneSuccess),
+					render.Styled("ns · workload · routing", render.ToneMuted),
+				},
+			}},
+		}},
+	})
+
+	got := out.String()
+	for _, want := range []string{"Pulling Helm Chart", "cilium 1.20.1", "Applications by wave", "Wave 10", "platform/10-cilium", "kube-system", "ns · workload · routing"} {
+		if !bytes.Contains([]byte(got), []byte(want)) {
+			t.Fatalf("output missing %q:\n%s", want, got)
+		}
+	}
+}

@@ -39,6 +39,27 @@ type Group struct {
 	Items []StatusLine
 }
 
+// TableRow is one semantic, marker-prefixed row in a grouped operations
+// table. Cell styles remain role-based and are never supplied as markup.
+type TableRow struct {
+	Level EventLevel
+	Cells []render.Cell
+}
+
+// TableGroup collects related table rows, such as applications sharing an
+// Argo CD sync wave.
+type TableGroup struct {
+	Title string
+	Rows  []TableRow
+}
+
+// GroupedTable is the detailed companion to GroupedList when each item needs
+// multiple scan-friendly attributes.
+type GroupedTable struct {
+	Title  string
+	Groups []TableGroup
+}
+
 // RiskLevel describes the semantic severity of an operation risk.
 type RiskLevel uint8
 
@@ -83,6 +104,8 @@ const (
 type Event struct {
 	Level   EventLevel
 	Message string
+	Label   string
+	Value   string
 }
 
 // EventStream presents engine events without permitting engine-owned styles.
@@ -93,9 +116,9 @@ type EventStream struct {
 
 // PrintHeader renders the shared operation identity block.
 func PrintHeader(w io.Writer, renderer render.Renderer, header Header) {
-	_, _ = fmt.Fprintln(w, renderer.Title(header.Title))
+	_, _ = fmt.Fprintln(w, renderer.Heading(header.Title))
 	for _, field := range header.Context {
-		_, _ = fmt.Fprintln(w, renderer.Muted(field.Label)+"  "+renderer.Accent(field.Value))
+		_, _ = fmt.Fprintln(w, renderer.Label(field.Label)+"  "+renderer.Value(field.Value))
 	}
 }
 
@@ -122,10 +145,31 @@ func PrintGroupedList(w io.Writer, renderer render.Renderer, title string, group
 	}
 }
 
+// PrintGroupedTable renders aligned, semantic component rows beneath groups.
+func PrintGroupedTable(w io.Writer, renderer render.Renderer, table GroupedTable) {
+	printSection(w, renderer, table.Title)
+	for _, group := range table.Groups {
+		_, _ = fmt.Fprintln(w, "  "+renderer.Warning(group.Title))
+		rows := make([][]render.Cell, 0, len(group.Rows))
+		for _, row := range group.Rows {
+			tone, mark := eventTone(row.Level)
+			cells := make([]render.Cell, 0, len(row.Cells)+1)
+			cells = append(cells, render.Styled(mark, tone))
+			cells = append(cells, row.Cells...)
+			rows = append(rows, cells)
+		}
+		_ = renderer.Table(w, render.Table{Rows: rows, Indent: 2})
+	}
+}
+
 // Event renders one completed event line.
 func (s EventStream) Event(event Event) {
 	tone, mark := eventTone(event.Level)
-	printStatus(s.Writer, s.Renderer, mark, event.Message, "", tone)
+	label := event.Label
+	if label == "" {
+		label = event.Message
+	}
+	printStatus(s.Writer, s.Renderer, mark, label, event.Value, tone)
 }
 
 // OperationResult is the shared terminal state of an operation.
@@ -144,7 +188,7 @@ func PrintOperationResult(w io.Writer, renderer render.Renderer, result Operatio
 	}
 	printStatus(w, renderer, mark, label, result.Message, tone)
 	for _, field := range result.Fields {
-		_, _ = fmt.Fprintln(w, "  "+renderer.Muted(field.Label)+"  "+renderer.Accent(field.Value))
+		_, _ = fmt.Fprintln(w, "  "+renderer.Label(field.Label)+"  "+renderer.Value(field.Value))
 	}
 }
 
@@ -218,7 +262,7 @@ func printSection(w io.Writer, renderer render.Renderer, title string) {
 }
 
 func printStatus(w io.Writer, renderer render.Renderer, mark, label, value string, tone render.Tone) {
-	line := renderer.Style(mark, tone) + " " + renderer.Muted(label)
+	line := renderer.Style(mark, tone) + " " + renderer.Label(label)
 	if value != "" {
 		line += "  " + renderer.Style(value, tone)
 	}

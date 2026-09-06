@@ -35,10 +35,17 @@ func Styled(value string, tone Tone) Cell { return Cell{Text: value, Tone: tone}
 type Table struct {
 	Headers []string
 	Rows    [][]Cell
+	Indent  int
 }
 
 func (r Renderer) Table(w io.Writer, table Table) error {
-	widths := make([]int, len(table.Headers))
+	columns := len(table.Headers)
+	for _, row := range table.Rows {
+		if len(row) > columns {
+			columns = len(row)
+		}
+	}
+	widths := make([]int, columns)
 	for i, header := range table.Headers {
 		widths[i] = lipgloss.Width(header)
 	}
@@ -49,11 +56,13 @@ func (r Renderer) Table(w io.Writer, table Table) error {
 			}
 		}
 	}
-	if err := writeTableRow(w, table.Headers, widths, nil); err != nil {
-		return err
+	if len(table.Headers) > 0 {
+		if err := writeTableRow(w, table.Headers, widths, table.Indent, nil); err != nil {
+			return err
+		}
 	}
 	for _, row := range table.Rows {
-		if err := writeTableRow(w, cellTexts(row), widths, func(i int, value string) string {
+		if err := writeTableRow(w, cellTexts(row), widths, table.Indent, func(i int, value string) string {
 			return r.applyTone(row[i].Tone, value)
 		}); err != nil {
 			return err
@@ -70,7 +79,12 @@ func cellTexts(row []Cell) []string {
 	return values
 }
 
-func writeTableRow(w io.Writer, values []string, widths []int, style func(int, string) string) error {
+func writeTableRow(w io.Writer, values []string, widths []int, indent int, style func(int, string) string) error {
+	if indent > 0 {
+		if _, err := io.WriteString(w, strings.Repeat(" ", indent)); err != nil {
+			return err
+		}
+	}
 	for i, value := range values {
 		if i > 0 {
 			if _, err := io.WriteString(w, "  "); err != nil {

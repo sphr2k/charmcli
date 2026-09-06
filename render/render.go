@@ -5,13 +5,36 @@
 package render
 
 import (
+	"image/color"
 	"io"
 	"os"
 
-	"charm.land/huh/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/colorprofile"
 )
+
+// Theme assigns colors to semantic presentation roles. Commands use Renderer
+// roles rather than colors, so the visual language remains coherent.
+type Theme struct {
+	Heading color.Color
+	Value   color.Color
+	Muted   color.Color
+	Success color.Color
+	Warning color.Color
+	Error   color.Color
+}
+
+// DefaultTheme keeps operations readable at terminal density: blue establishes
+// hierarchy, cyan carries identifiers and paths, and green/amber/red retain
+// their exclusive semantic meaning.
+var DefaultTheme = Theme{
+	Heading: lipgloss.Color("#5DA8E8"),
+	Value:   lipgloss.Color("#179DA7"),
+	Muted:   lipgloss.Color("#8C939F"),
+	Success: lipgloss.Color("#78B159"),
+	Warning: lipgloss.Color("#E7B665"),
+	Error:   lipgloss.Color("#EF6B73"),
+}
 
 // Renderer applies semantic styles suitable for human output.
 type Renderer struct {
@@ -29,43 +52,45 @@ type Renderer struct {
 // writer's detected color profile. NO_COLOR, CLICOLOR and non-TTY behavior are
 // handled by Charm colorprofile detection.
 func New(writer io.Writer) Renderer {
+	return NewWithTheme(writer, DefaultTheme)
+}
+
+// NewWithTheme derives semantic styles from a named role palette. NO_COLOR,
+// CLICOLOR and non-TTY behavior are handled by Charm colorprofile detection.
+func NewWithTheme(writer io.Writer, theme Theme) Renderer {
 	profile := colorprofile.Detect(writer, os.Environ())
 	if profile <= colorprofile.ASCII {
 		return Renderer{}
 	}
-
-	theme := huh.ThemeCharm(false)
-	convert := func(style lipgloss.Style) lipgloss.Style {
-		// Huh field styles may carry interactive prompt strings such as "> " or
-		// " *". Static semantic styles reuse only their visual attributes.
-		style = style.UnsetString().UnsetWidth().UnsetMaxWidth().UnsetHeight().UnsetMaxHeight().Inline(true)
-		if foreground := style.GetForeground(); foreground != nil {
-			style = style.Foreground(profile.Convert(foreground))
+	style := func(color color.Color, bold bool) lipgloss.Style {
+		result := lipgloss.NewStyle().Foreground(profile.Convert(color)).Inline(true)
+		if bold {
+			result = result.Bold(true)
 		}
-		if background := style.GetBackground(); background != nil {
-			style = style.Background(profile.Convert(background))
-		}
-		return style
+		return result
 	}
 
 	return Renderer{
 		enabled: true,
-		title:   convert(theme.Focused.Title),
-		accent:  convert(theme.Focused.SelectSelector),
-		success: convert(theme.Focused.SelectedOption),
-		warning: lipgloss.NewStyle().Foreground(profile.Convert(lipgloss.Yellow)).Bold(true),
-		error:   convert(theme.Focused.ErrorMessage).Bold(true),
-		muted:   convert(theme.Focused.Description),
-		code:    convert(theme.Focused.TextInput.Prompt),
+		title:   style(theme.Heading, true),
+		accent:  style(theme.Value, false),
+		success: style(theme.Success, false),
+		warning: style(theme.Warning, true),
+		error:   style(theme.Error, true),
+		muted:   style(theme.Muted, false),
+		code:    style(theme.Value, false),
 	}
 }
 
 func (r Renderer) Title(value string) string   { return r.apply(r.title, value) }
+func (r Renderer) Heading(value string) string { return r.apply(r.title, value) }
 func (r Renderer) Accent(value string) string  { return r.apply(r.accent, value) }
+func (r Renderer) Value(value string) string   { return r.apply(r.accent, value) }
 func (r Renderer) Success(value string) string { return r.apply(r.success, value) }
 func (r Renderer) Warning(value string) string { return r.apply(r.warning, value) }
 func (r Renderer) Error(value string) string   { return r.apply(r.error, value) }
 func (r Renderer) Muted(value string) string   { return r.apply(r.muted, value) }
+func (r Renderer) Label(value string) string   { return r.apply(r.muted, value) }
 func (r Renderer) Code(value string) string    { return r.apply(r.code, value) }
 
 // Style applies a semantic tone to a human-readable value.

@@ -79,5 +79,5 @@ func (r Renderer) SectionLines(title string, width int) []string {
 	if width < lipgloss.Width(title) {
 		width = lipgloss.Width(title)
 	}
-	return []string{r.Accent(title), r.Rule(width)}
+	return []string{r.Heading(title), r.Rule(width)}
 }

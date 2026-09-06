@@ -2,6 +2,7 @@ package ui
 
 import (
 	"bytes"
+	"strings"
 	"testing"
 
 	"github.com/sphr2k/charmcli/render"
@@ -22,6 +23,35 @@ func TestOperationPlanPlainTextKeepsHierarchyAndChanges(t *testing.T) {
 		if !bytes.Contains([]byte(got), []byte(want)) {
 			t.Fatalf("output missing %q:\n%s", want, got)
 		}
+	}
+}
+
+func TestGroupedDetailsAlignsValuesAcrossWavesAndIndentsDetails(t *testing.T) {
+	var out bytes.Buffer
+	renderer := render.New(&out)
+	PrintGroupedDetails(&out, renderer, GroupedDetails{
+		Title: "Applications by wave",
+		Groups: []DetailGroup{
+			{Title: "Wave 10", Rows: []DetailRow{{Level: EventSuccess, Label: "platform/10-cilium"}, {Level: EventSuccess, Label: "platform/10-cert-manager", Value: "cert-manager", Details: []string{"ns · prereqs · workload · ops"}}}},
+			{Title: "Wave 40", Rows: []DetailRow{{Level: EventSuccess, Label: "platform/40-authorino", Value: "authorino-system", Details: []string{"prereqs · workload · routing"}}}},
+		},
+	})
+
+	lines := strings.Split(out.String(), "\n")
+	var certLine, authorinoLine string
+	for _, line := range lines {
+		if strings.Contains(line, "cert-manager") && strings.Contains(line, "platform/") {
+			certLine = line
+		}
+		if strings.Contains(line, "authorino-system") {
+			authorinoLine = line
+		}
+	}
+	if strings.LastIndex(certLine, "cert-manager") != strings.LastIndex(authorinoLine, "authorino-system") {
+		t.Fatalf("values are not globally aligned:\n%s", out.String())
+	}
+	if !strings.Contains(out.String(), "    ns · prereqs · workload · ops") {
+		t.Fatalf("details are not indented:\n%s", out.String())
 	}
 }
 

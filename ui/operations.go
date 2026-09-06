@@ -3,7 +3,9 @@ package ui
 import (
 	"fmt"
 	"io"
+	"strings"
 
+	"charm.land/lipgloss/v2"
 	"github.com/sphr2k/charmcli/render"
 )
 
@@ -58,6 +60,29 @@ type TableGroup struct {
 type GroupedTable struct {
 	Title  string
 	Groups []TableGroup
+}
+
+// DetailRow is one compact operation item with optional globally aligned
+// context and indented secondary detail lines.
+type DetailRow struct {
+	Level   EventLevel
+	Label   string
+	Value   string
+	Details []string
+}
+
+// DetailGroup collects compact detail rows under one operational phase.
+type DetailGroup struct {
+	Title string
+	Rows  []DetailRow
+}
+
+// GroupedDetails renders grouped operations without turning every group into
+// a separate table. Values align across the complete view; details are only
+// shown when callers explicitly provide them.
+type GroupedDetails struct {
+	Title  string
+	Groups []DetailGroup
 }
 
 // RiskLevel describes the semantic severity of an operation risk.
@@ -159,6 +184,32 @@ func PrintGroupedTable(w io.Writer, renderer render.Renderer, table GroupedTable
 			rows = append(rows, cells)
 		}
 		_ = renderer.Table(w, render.Table{Rows: rows, Indent: 2})
+	}
+}
+
+// PrintGroupedDetails renders an airy grouped list with an optional aligned
+// value column and vertically indented secondary details.
+func PrintGroupedDetails(w io.Writer, renderer render.Renderer, details GroupedDetails) {
+	printSection(w, renderer, details.Title)
+	labelWidth := 0
+	for _, group := range details.Groups {
+		for _, row := range group.Rows {
+			labelWidth = max(labelWidth, lipgloss.Width(row.Label))
+		}
+	}
+	for _, group := range details.Groups {
+		_, _ = fmt.Fprintln(w, "  "+renderer.Warning(group.Title))
+		for _, row := range group.Rows {
+			tone, mark := eventTone(row.Level)
+			line := "  " + renderer.Style(mark, tone) + " " + renderer.Accent(row.Label)
+			if row.Value != "" {
+				line += strings.Repeat(" ", labelWidth-lipgloss.Width(row.Label)+2) + renderer.Success(row.Value)
+			}
+			_, _ = fmt.Fprintln(w, line)
+			for _, detail := range row.Details {
+				_, _ = fmt.Fprintln(w, "    "+renderer.Muted(detail))
+			}
+		}
 	}
 }
 

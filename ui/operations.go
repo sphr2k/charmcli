@@ -169,7 +169,11 @@ func (s EventStream) Event(event Event) {
 	if label == "" {
 		label = event.Message
 	}
-	printStatus(s.Writer, s.Renderer, mark, label, event.Value, tone)
+	line := s.Renderer.Style(mark, tone) + " " + label
+	if event.Value != "" {
+		line += "  " + s.Renderer.Style(event.Value, tone)
+	}
+	_, _ = fmt.Fprintln(s.Writer, line)
 }
 
 // OperationResult is the shared terminal state of an operation.

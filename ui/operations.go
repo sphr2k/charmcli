@@ -13,6 +13,32 @@ type Field struct {
 	Value string
 }
 
+// Header identifies an operation and its plain-text context. Consumers pass
+// domain values, never pre-styled terminal markup.
+type Header struct {
+	Title   string
+	Context []Field
+}
+
+// Section renders one named operation phase.
+type Section struct {
+	Title string
+}
+
+// StatusLine is a semantic, scan-friendly outcome line.
+type StatusLine struct {
+	Level EventLevel
+	Label string
+	Value string
+}
+
+// Group is a titled collection of status lines, such as applications in one
+// Argo CD wave.
+type Group struct {
+	Title string
+	Items []StatusLine
+}
+
 // RiskLevel describes the semantic severity of an operation risk.
 type RiskLevel uint8
 
@@ -65,17 +91,40 @@ type EventStream struct {
 	Renderer render.Renderer
 }
 
+// PrintHeader renders the shared operation identity block.
+func PrintHeader(w io.Writer, renderer render.Renderer, header Header) {
+	_, _ = fmt.Fprintln(w, renderer.Title(header.Title))
+	for _, field := range header.Context {
+		_, _ = fmt.Fprintln(w, renderer.Muted(field.Label)+"  "+renderer.Accent(field.Value))
+	}
+}
+
+// PrintSection renders a visible workflow phase with the shared quiet rule.
+func PrintSection(w io.Writer, renderer render.Renderer, section Section) {
+	printSection(w, renderer, section.Title)
+}
+
+// PrintStatusLine renders a plain-text status using only semantic tones.
+func PrintStatusLine(w io.Writer, renderer render.Renderer, status StatusLine) {
+	tone, mark := eventTone(status.Level)
+	printStatus(w, renderer, mark, status.Label, status.Value, tone)
+}
+
+// PrintGroupedList renders grouped status entries without local layout or
+// color decisions in domain commands.
+func PrintGroupedList(w io.Writer, renderer render.Renderer, title string, groups []Group) {
+	printSection(w, renderer, title)
+	for _, group := range groups {
+		_, _ = fmt.Fprintln(w, "  "+renderer.Warning(group.Title))
+		for _, item := range group.Items {
+			PrintStatusLine(w, renderer, item)
+		}
+	}
+}
+
 // Event renders one completed event line.
 func (s EventStream) Event(event Event) {
-	tone, mark := render.TonePlain, "•"
-	switch event.Level {
-	case EventSuccess:
-		tone, mark = render.ToneSuccess, "✓"
-	case EventWarning:
-		tone, mark = render.ToneWarning, "!"
-	case EventError:
-		tone, mark = render.ToneError, "×"
-	}
+	tone, mark := eventTone(event.Level)
 	printStatus(s.Writer, s.Renderer, mark, event.Message, "", tone)
 }
 
@@ -102,38 +151,60 @@ func PrintOperationResult(w io.Writer, renderer render.Renderer, result Operatio
 // PrintOperationPlan renders a scan-friendly operation plan without exposing
 // Lip Gloss styles to consumers.
 func PrintOperationPlan(w io.Writer, renderer render.Renderer, plan OperationPlan) {
-	_, _ = fmt.Fprintln(w, renderer.Title(plan.Title))
-	for _, field := range plan.Context {
-		_, _ = fmt.Fprintln(w, renderer.Muted(field.Label)+"  "+renderer.Accent(field.Value))
+	PrintHeader(w, renderer, Header{Title: plan.Title, Context: plan.Context})
+	PrintChangeSet(w, renderer, plan.Changes)
+	PrintRisks(w, renderer, plan.Risks)
+}
+
+// PrintChangeSet renders a bounded changed-path summary as its own section.
+func PrintChangeSet(w io.Writer, renderer render.Renderer, changes ChangeSet) {
+	if changes.Added == 0 && changes.Modified == 0 && changes.Deleted == 0 {
+		return
 	}
-	if plan.Changes.Added != 0 || plan.Changes.Modified != 0 || plan.Changes.Deleted != 0 {
-		printSection(w, renderer, "Changes")
-		printStatus(w, renderer, "✓", "added", fmt.Sprintf("+%d", plan.Changes.Added), render.ToneSuccess)
-		printStatus(w, renderer, "✓", "modified", fmt.Sprintf("~%d", plan.Changes.Modified), render.ToneSuccess)
-		deleteTone := render.TonePlain
-		if plan.Changes.Deleted != 0 {
-			deleteTone = render.ToneWarning
-		}
-		printStatus(w, renderer, "!", "deleted", fmt.Sprintf("-%d", plan.Changes.Deleted), deleteTone)
-		for _, path := range plan.Changes.Paths {
-			_, _ = fmt.Fprintln(w, "    "+renderer.Muted(path))
-		}
-		if plan.Changes.Omitted > 0 {
-			_, _ = fmt.Fprintf(w, "    %s\n", renderer.Muted(fmt.Sprintf("… %d more", plan.Changes.Omitted)))
-		}
+	printSection(w, renderer, "Changes")
+	printStatus(w, renderer, "✓", "added", fmt.Sprintf("+%d", changes.Added), render.ToneSuccess)
+	printStatus(w, renderer, "✓", "modified", fmt.Sprintf("~%d", changes.Modified), render.ToneSuccess)
+	deleteTone := render.TonePlain
+	if changes.Deleted != 0 {
+		deleteTone = render.ToneWarning
 	}
-	if len(plan.Risks) > 0 {
-		printSection(w, renderer, "Risks")
-		for _, risk := range plan.Risks {
-			tone, mark := render.TonePlain, "•"
-			if risk.Level == RiskWarning {
-				tone, mark = render.ToneWarning, "!"
-			}
-			if risk.Level == RiskBlocking {
-				tone, mark = render.ToneError, "×"
-			}
-			printStatus(w, renderer, mark, risk.Message, "", tone)
+	printStatus(w, renderer, "!", "deleted", fmt.Sprintf("-%d", changes.Deleted), deleteTone)
+	for _, path := range changes.Paths {
+		_, _ = fmt.Fprintln(w, "    "+renderer.Muted(path))
+	}
+	if changes.Omitted > 0 {
+		_, _ = fmt.Fprintf(w, "    %s\n", renderer.Muted(fmt.Sprintf("… %d more", changes.Omitted)))
+	}
+}
+
+// PrintRisks renders semantic operation risks as their own section.
+func PrintRisks(w io.Writer, renderer render.Renderer, risks []Risk) {
+	if len(risks) == 0 {
+		return
+	}
+	printSection(w, renderer, "Risks")
+	for _, risk := range risks {
+		tone, mark := render.TonePlain, "•"
+		if risk.Level == RiskWarning {
+			tone, mark = render.ToneWarning, "!"
 		}
+		if risk.Level == RiskBlocking {
+			tone, mark = render.ToneError, "×"
+		}
+		printStatus(w, renderer, mark, risk.Message, "", tone)
+	}
+}
+
+func eventTone(level EventLevel) (render.Tone, string) {
+	switch level {
+	case EventSuccess:
+		return render.ToneSuccess, "✓"
+	case EventWarning:
+		return render.ToneWarning, "!"
+	case EventError:
+		return render.ToneError, "×"
+	default:
+		return render.TonePlain, "•"
 	}
 }
 

@@ -40,3 +40,19 @@ func TestEventStreamAndResultUseSemanticMarkers(t *testing.T) {
 		}
 	}
 }
+
+func TestToolkitPrimitivesKeepPhaseAndWaveHierarchy(t *testing.T) {
+	var out bytes.Buffer
+	renderer := render.New(&out)
+	PrintHeader(&out, renderer, Header{Title: "GitOps render", Context: []Field{{Label: "target", Value: "clastix"}}})
+	PrintSection(&out, renderer, Section{Title: "Postprocess"})
+	PrintStatusLine(&out, renderer, StatusLine{Level: EventSuccess, Label: "processed applications", Value: "61"})
+	PrintGroupedList(&out, renderer, "Applications by wave", []Group{{Title: "Wave 10", Items: []StatusLine{{Level: EventSuccess, Label: "platform/cilium", Value: "cilium"}}}})
+
+	got := out.String()
+	for _, want := range []string{"GitOps render", "target", "Postprocess", "✓", "processed applications", "Applications by wave", "Wave 10", "platform/cilium"} {
+		if !bytes.Contains([]byte(got), []byte(want)) {
+			t.Fatalf("output missing %q:\n%s", want, got)
+		}
+	}
+}

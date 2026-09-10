@@ -381,18 +381,46 @@ func wrapText(prefix, value string, width int) []string {
 	line := prefix
 	var lines []string
 	for _, word := range words {
-		separator := ""
-		if line != prefix && line != continuation {
-			separator = " "
+		for word != "" {
+			separator := ""
+			if line != prefix && line != continuation {
+				separator = " "
+			}
+			available := width - lipgloss.Width(line+separator)
+			if available <= 0 {
+				lines = append(lines, line)
+				line = continuation
+				continue
+			}
+			part, rest := cutToWidth(word, available)
+			line += separator + part
+			word = rest
+			if word != "" {
+				lines = append(lines, line)
+				line = continuation
+			}
 		}
-		if lipgloss.Width(line+separator+word) > width && line != prefix && line != continuation {
-			lines = append(lines, line)
-			line = continuation + word
-			continue
-		}
-		line += separator + word
 	}
 	return append(lines, line)
+}
+
+func cutToWidth(value string, width int) (string, string) {
+	if lipgloss.Width(value) <= width {
+		return value, ""
+	}
+	used := 0
+	for index, runeValue := range value {
+		runeWidth := lipgloss.Width(string(runeValue))
+		if used+runeWidth > width {
+			if index == 0 {
+				size := len(string(runeValue))
+				return value[:size], value[size:]
+			}
+			return value[:index], value[index:]
+		}
+		used += runeWidth
+	}
+	return value, ""
 }
 func workflowWidth(width int) int {
 	if width < 24 {

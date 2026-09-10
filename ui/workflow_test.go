@@ -89,14 +89,17 @@ func TestWorkflowTerminalViewKeepsOneSpinnerAndFinalizesIt(t *testing.T) {
 func TestWorkflowWrapsDetailsToTerminalWidth(t *testing.T) {
 	state := newWorkflowState(testWorkflow())
 	state.apply(workflowEvent{kind: workflowStart, stepID: "bootstrap"})
-	state.apply(workflowEvent{kind: workflowDetail, stepID: "bootstrap", details: []Field{{Label: "error", Value: "the replacement server did not become reachable before the configured timeout elapsed"}}})
+	state.apply(workflowEvent{kind: workflowDetail, stepID: "bootstrap", details: []Field{
+		{Label: "error", Value: "the replacement server did not become reachable before the configured timeout elapsed"},
+		{Label: "provider", Value: "43ba1bd7-3935-47b1-ba19-bd1739365a9a"},
+	}})
 	view := renderWorkflow(state, 38, render.Renderer{}, func(string) string { return "◌" })
 	for _, line := range strings.Split(strings.TrimSuffix(view, "\n"), "\n") {
 		if width := lipgloss.Width(line); width > 38 {
 			t.Fatalf("line width %d exceeds terminal width: %q\n%s", width, line, view)
 		}
 	}
-	if !strings.Contains(view, "error") || !strings.Contains(view, "configured") {
+	if !strings.Contains(view, "error") || !strings.Contains(view, "configured") || !strings.Contains(view, "43ba1bd7") {
 		t.Fatalf("detail missing after wrapping:\n%s", view)
 	}
 }

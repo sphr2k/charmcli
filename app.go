@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"runtime"
 
 	"charm.land/fang/v2"
 	"charm.land/huh/v2"
@@ -27,6 +28,26 @@ type App struct {
 }
 
 type Option func(*App)
+
+// BuildInfo contains metadata supplied by the binary's build.
+type BuildInfo struct {
+	Version string
+	Commit  string
+	Date    string
+}
+
+func (info BuildInfo) String() string {
+	if info.Version == "" {
+		info.Version = "dev"
+	}
+	if info.Commit == "" {
+		info.Commit = "none"
+	}
+	if info.Date == "" {
+		info.Date = "unknown"
+	}
+	return fmt.Sprintf("%s (commit=%s, date=%s, %s/%s)", info.Version, info.Commit, info.Date, runtime.GOOS, runtime.GOARCH)
+}
 
 // New creates an application with Charm/Fang defaults.
 func New(options ...Option) *App {
@@ -50,6 +71,14 @@ func WithVersion(version string) Option {
 func WithCommit(commit string) Option {
 	return func(app *App) {
 		app.fangOptions = append(app.fangOptions, fang.WithCommit(commit))
+	}
+}
+
+// WithBuildInfo configures the shared version format and Fang's commit metadata.
+func WithBuildInfo(info BuildInfo) Option {
+	return func(app *App) {
+		WithVersion(info.String())(app)
+		WithCommit(info.Commit)(app)
 	}
 }
 

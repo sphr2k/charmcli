@@ -17,6 +17,23 @@ func testStreams() (Streams, *bytes.Buffer, *bytes.Buffer) {
 	return Streams{In: &bytes.Buffer{}, Out: out, Err: errOut}, out, errOut
 }
 
+func TestBuildInfoVersionFlag(t *testing.T) {
+	streams, out, _ := testStreams()
+	info := BuildInfo{Version: "1.2.3", Commit: "abc1234", Date: "2026-09-30T12:00:00Z"}
+	app := New(WithBuildInfo(info))
+	code := app.Run(context.Background(), []string{"-v"}, streams, func(_ *Runtime) *cobra.Command {
+		return &cobra.Command{Use: "example"}
+	})
+	if code != 0 {
+		t.Fatalf("version returned code %d", code)
+	}
+	for _, want := range []string{"example version 1.2.3", "commit=abc1234", "date=2026-09-30T12:00:00Z"} {
+		if !strings.Contains(out.String(), want) {
+			t.Fatalf("version output missing %q: %s", want, out.String())
+		}
+	}
+}
+
 func TestAppSuccessUsesInjectedStreams(t *testing.T) {
 	streams, out, _ := testStreams()
 	app := New(WithRuntimeOptions(WithCapabilities(Capabilities{})))

@@ -20,6 +20,8 @@ type RiskLevel uint8
 const (
 	RiskInfo RiskLevel = iota
 	RiskWarning
+	// RiskDanger marks destructive operations requiring deliberate confirmation.
+	// It is a warning, not a failed or blocked operation.
 	RiskDanger
 )
 
@@ -117,7 +119,7 @@ func PrintPlan(w io.Writer, renderer render.Renderer, plan Plan, options RenderO
 			case RiskWarning:
 				level = ui.RiskWarning
 			case RiskDanger:
-				level = ui.RiskBlocking
+				level = ui.RiskWarning
 			}
 			risks = append(risks, ui.Risk{Level: level, Message: risk.Message})
 		}

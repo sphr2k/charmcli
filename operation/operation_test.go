@@ -66,3 +66,12 @@ func TestConfirmApplyHonorsBypass(t *testing.T) {
 		t.Fatalf("bypassed confirm = (%t, %v), want (true, nil)", ok, err)
 	}
 }
+
+func TestDestructiveRiskRendersAsWarningNotFailure(t *testing.T) {
+	var out bytes.Buffer
+	PrintPlan(&out, render.New(&out), Plan{Risks: []Risk{{Level: RiskDanger, Message: "destructive operation requires confirmation"}}}, RenderOptions{})
+	text := out.String()
+	if !strings.Contains(text, "! destructive operation requires confirmation") || strings.Contains(text, "×") {
+		t.Fatalf("destructive risk must warn without a failure marker:\n%s", text)
+	}
+}
